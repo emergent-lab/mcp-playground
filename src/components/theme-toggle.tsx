@@ -17,6 +17,7 @@ const DARK_MODE_SCALE = 0.5;
 export const ThemeToggle = ({ className = "" }: { className?: string }) => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
@@ -48,6 +49,11 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
 
   const isDark = theme === "dark";
 
+  const handleClick = () => {
+    setHasInteracted(true);
+    setTheme(isDark ? "light" : "dark");
+  };
+
   return (
     <button
       aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
@@ -55,7 +61,7 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
         "cursor-pointer rounded-full transition-all duration-300 active:scale-95",
         className
       )}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={handleClick}
       type="button"
     >
       <svg
@@ -72,7 +78,11 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
               x: isDark ? DARK_MODE_CLIP_X : 0,
             }}
             d="M0-5h30a1 1 0 0 0 9 13v24H0Z"
-            transition={{ ease: "easeInOut", duration: 0.35 }}
+            transition={
+              hasInteracted
+                ? { ease: "easeInOut", duration: 0.35 }
+                : { duration: 0 }
+            }
           />
         </clipPath>
         <g clipPath="url(#skiper-btn-2)">
@@ -80,7 +90,11 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
             animate={{ r: isDark ? DARK_MODE_RADIUS : LIGHT_MODE_RADIUS }}
             cx="16"
             cy="16"
-            transition={{ ease: "easeInOut", duration: 0.35 }}
+            transition={
+              hasInteracted
+                ? { ease: "easeInOut", duration: 0.35 }
+                : { duration: 0 }
+            }
           />
           <motion.g
             animate={{
@@ -90,7 +104,11 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
             }}
             stroke="currentColor"
             strokeWidth="1.5"
-            transition={{ ease: "easeInOut", duration: 0.35 }}
+            transition={
+              hasInteracted
+                ? { ease: "easeInOut", duration: 0.35 }
+                : { duration: 0 }
+            }
           >
             <path d="M16 5.5v-4" />
             <path d="M16 30.5v-4" />
@@ -106,11 +124,3 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
     </button>
   );
 };
-
-/**
- * Theme Toggle Animation — React + Framer Motion Recreation
- * Inspired by and adapted from https://toggles.dev/ (Open Source CSS Theme Toggles by Alfie Jones)
- * This implementation is rebuilt in React and Framer Motion, avoiding external toggle packages.
- *
- * Attribution: https://toggles.dev/
- */
