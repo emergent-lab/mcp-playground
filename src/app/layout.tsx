@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
+import { CommandMenu } from "@/components/command-menu";
+import { KeyboardShortcutsHandler } from "@/components/keyboard-shortcuts-handler";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TopNav } from "@/components/top-nav";
 import { BreakpointIndicator } from "@/components/ui/breakpoint-indicator";
@@ -36,16 +38,22 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${foundryPlek.variable} font-sans antialiased`}
       >
+        <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           disableTransitionOnChange
           enableSystem
         >
+          <KeyboardShortcutsHandler />
+          <CommandMenu />
           <TopNav />
           <BreakpointIndicator className="fixed bottom-0 left-0" />
-
-          {children}
+          <main className="min-h-screen">
+            <div className="mx-auto min-h-screen w-full max-w-6xl py-32">
+              {children}
+            </div>
+          </main>
         </ThemeProvider>
         <Analytics />
       </body>
