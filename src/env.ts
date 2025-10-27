@@ -10,8 +10,12 @@ export const env = createEnv({
     GITHUB_CLIENT_SECRET: z.string(),
     RESEND_API_KEY: z.string().min(1),
   },
-  client: {},
-  experimental__runtimeEnv: {},
+  client: {
+    NEXT_PUBLIC_BASE_URL: z.string().url(),
+  },
+  experimental__runtimeEnv: {
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+  },
   skipValidation: process.env.SKIP_ENV_VALIDATION === "true",
   extends: [vercel()],
 });
