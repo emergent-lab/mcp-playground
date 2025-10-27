@@ -3,7 +3,7 @@ import type { SVGProps } from "react";
 const GithubWordmarkDark = (props: SVGProps<SVGSVGElement>) => (
   <svg
     {...props}
-    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlnsXlink="http://www.w3.org/1999/xlink"
     x="0px"
     y="0px"
     viewBox="0 0 249.1 67.5"

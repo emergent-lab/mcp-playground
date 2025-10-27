@@ -1,5 +1,10 @@
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import {
+  CallToolResultSchema,
+  ListPromptsResultSchema,
+  ListResourcesResultSchema,
+  ListToolsResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createMcpClient } from "@/server/services/mcp-client";
@@ -53,17 +58,15 @@ export const serverRouter = router({
       );
 
       try {
-        // Try connecting without auth
-        const { client } = await createMcpClient(
+        // Try connecting (with OAuth provider if needed)
+        const { client, transport } = await createMcpClient(
           ctx.userId,
           input.serverId,
           ctx.db
         );
 
-        // Attempt connection
-        await client.connect(
-          new StreamableHTTPClientTransport(new URL(input.serverUrl))
-        );
+        // Attempt connection using the configured transport
+        await client.connect(transport);
 
         // Success - no auth needed
         await client.close();
@@ -72,8 +75,12 @@ export const serverRouter = router({
           serverId: input.serverId,
         };
       } catch (error) {
-        // Check if it's an auth error
-        if (error instanceof UnauthorizedError) {
+        // Check if it's an auth error (either UnauthorizedError or HTTP 401)
+        const isAuthError =
+          error instanceof UnauthorizedError ||
+          (error instanceof Error && error.message.includes("HTTP 401"));
+
+        if (isAuthError) {
           // Mark server as requiring auth
           await storage.markRequiresAuth(input.serverId, true);
 
@@ -83,10 +90,10 @@ export const serverRouter = router({
           if (!authUrl) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: "Failed to initiate OAuth flow",
+              message:
+                "Failed to initiate OAuth flow - no auth URL saved. The server requires authentication but did not provide authorization details.",
             });
           }
-
           return {
             status: "needs_auth" as const,
             serverId: input.serverId,
@@ -159,31 +166,41 @@ export const serverRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { client } = await createMcpClient(
-        ctx.userId,
-        input.serverId,
-        ctx.db
-      );
+      const storage = new CredentialStorage(ctx.userId, ctx.db);
 
       try {
-        const storage = new CredentialStorage(ctx.userId, ctx.db);
-        const serverData = await storage.getServer(input.serverId);
+        const { client, transport } = await createMcpClient(
+          ctx.userId,
+          input.serverId,
+          ctx.db
+        );
 
-        if (!serverData) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Server not found",
-          });
+        await client.connect(transport);
+        const result = await client.request(
+          { method: "tools/list", params: {} },
+          ListToolsResultSchema
+        );
+        await client.close();
+        return result.tools;
+      } catch (error) {
+        // Check if it's an auth error
+        const isAuthError =
+          error instanceof UnauthorizedError ||
+          (error instanceof Error && error.message.includes("HTTP 401"));
+
+        if (isAuthError) {
+          await storage.markRequiresAuth(input.serverId, true);
+
+          // Get auth URL
+          const authUrl = await storage.getAuthUrl(input.serverId);
+          if (authUrl) {
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: JSON.stringify({ authUrl }),
+            });
+          }
         }
 
-        const transport = new StreamableHTTPClientTransport(
-          new URL(serverData.serverUrl)
-        );
-        await client.connect(transport);
-        const tools = await client.listTools();
-        await client.close();
-        return tools;
-      } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
@@ -202,31 +219,41 @@ export const serverRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { client } = await createMcpClient(
-        ctx.userId,
-        input.serverId,
-        ctx.db
-      );
+      const storage = new CredentialStorage(ctx.userId, ctx.db);
 
       try {
-        const storage = new CredentialStorage(ctx.userId, ctx.db);
-        const serverData = await storage.getServer(input.serverId);
+        const { client, transport } = await createMcpClient(
+          ctx.userId,
+          input.serverId,
+          ctx.db
+        );
 
-        if (!serverData) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Server not found",
-          });
+        await client.connect(transport);
+        const result = await client.request(
+          { method: "resources/list", params: {} },
+          ListResourcesResultSchema
+        );
+        await client.close();
+        return result.resources;
+      } catch (error) {
+        // Check if it's an auth error
+        const isAuthError =
+          error instanceof UnauthorizedError ||
+          (error instanceof Error && error.message.includes("HTTP 401"));
+
+        if (isAuthError) {
+          await storage.markRequiresAuth(input.serverId, true);
+
+          // Get auth URL
+          const authUrl = await storage.getAuthUrl(input.serverId);
+          if (authUrl) {
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: JSON.stringify({ authUrl }),
+            });
+          }
         }
 
-        const transport = new StreamableHTTPClientTransport(
-          new URL(serverData.serverUrl)
-        );
-        await client.connect(transport);
-        const resources = await client.listResources();
-        await client.close();
-        return resources;
-      } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
@@ -245,35 +272,86 @@ export const serverRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { client } = await createMcpClient(
+      const storage = new CredentialStorage(ctx.userId, ctx.db);
+
+      try {
+        const { client, transport } = await createMcpClient(
+          ctx.userId,
+          input.serverId,
+          ctx.db
+        );
+
+        await client.connect(transport);
+        const result = await client.request(
+          { method: "prompts/list", params: {} },
+          ListPromptsResultSchema
+        );
+        await client.close();
+        return result.prompts;
+      } catch (error) {
+        // Check if it's an auth error
+        const isAuthError =
+          error instanceof UnauthorizedError ||
+          (error instanceof Error && error.message.includes("HTTP 401"));
+
+        if (isAuthError) {
+          await storage.markRequiresAuth(input.serverId, true);
+
+          // Get auth URL
+          const authUrl = await storage.getAuthUrl(input.serverId);
+          if (authUrl) {
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: JSON.stringify({ authUrl }),
+            });
+          }
+        }
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error ? error.message : "Failed to list prompts",
+        });
+      }
+    }),
+
+  /**
+   * Call a tool on the server
+   */
+  callTool: protectedProcedure
+    .input(
+      z.object({
+        serverId: z.string(),
+        toolName: z.string(),
+        arguments: z.record(z.string(), z.unknown()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { client, transport } = await createMcpClient(
         ctx.userId,
         input.serverId,
         ctx.db
       );
 
       try {
-        const storage = new CredentialStorage(ctx.userId, ctx.db);
-        const serverData = await storage.getServer(input.serverId);
-
-        if (!serverData) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Server not found",
-          });
-        }
-
-        const transport = new StreamableHTTPClientTransport(
-          new URL(serverData.serverUrl)
-        );
         await client.connect(transport);
-        const prompts = await client.listPrompts();
+        const result = await client.request(
+          {
+            method: "tools/call",
+            params: {
+              name: input.toolName,
+              arguments: input.arguments || {},
+            },
+          },
+          CallToolResultSchema
+        );
         await client.close();
-        return prompts;
+        return result;
       } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            error instanceof Error ? error.message : "Failed to list prompts",
+            error instanceof Error ? error.message : "Failed to call tool",
         });
       }
     }),

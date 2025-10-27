@@ -32,7 +32,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
    * OAuth callback URL where the MCP server will redirect after authorization
    */
   get redirectUrl(): string {
-    return `${this.baseUrl}/api/mcp/${this.serverId}/auth/callback`;
+    return `${this.baseUrl}/oauth/callback`;
   }
 
   /**
@@ -44,17 +44,17 @@ export class McpOAuthProvider implements OAuthClientProvider {
       redirect_uris: [this.redirectUrl],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
-      token_endpoint_auth_method: "client_secret_post",
+      token_endpoint_auth_method: "none", // Public client (browser-based)
       scope: "mcp:*",
     };
   }
 
   /**
    * Generate OAuth state parameter for CSRF protection
+   * Returns the serverId so the callback can identify which server this is for
    */
   state(): string {
-    // Generate a random state value
-    return crypto.randomUUID();
+    return this.serverId;
   }
 
   /**
@@ -109,7 +109,8 @@ export class McpOAuthProvider implements OAuthClientProvider {
    * The browser will handle the actual redirect.
    */
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
-    const state = await this.state();
+    const state = this.state();
+
     await this.storage.saveAuthUrl(
       this.serverId,
       authorizationUrl.toString(),

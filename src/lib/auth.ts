@@ -1,8 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { anonymous, magicLink } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import MagicLinkEmail from "@/../emails/magic-link";
 import { db } from "@/db";
+import { log, server } from "@/db/schema/app";
 import { env } from "@/env";
 import { getResend } from "@/lib/email/resend";
 
@@ -25,7 +27,21 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    anonymous(),
+    anonymous({
+      onLinkAccount: async ({ anonymousUser, newUser }) => {
+        // Migrate all MCP servers from anonymous user to authenticated user
+        await db
+          .update(server)
+          .set({ userId: newUser.user.id })
+          .where(eq(server.userId, anonymousUser.user.id));
+
+        // Migrate all request logs from anonymous user to authenticated user
+        await db
+          .update(log)
+          .set({ userId: newUser.user.id })
+          .where(eq(log.userId, anonymousUser.user.id));
+      },
+    }),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
         const resend = getResend();

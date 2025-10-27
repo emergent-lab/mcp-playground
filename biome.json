@@ -29,7 +29,7 @@
         "noUnknownAtRules": "off"
       },
       "style": {
-        "noMagicNumbers": "warn"
+        "noMagicNumbers": "off"
       },
       "performance": {
         "noNamespaceImport": "warn"

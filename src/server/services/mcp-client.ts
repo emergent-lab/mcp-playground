@@ -35,7 +35,11 @@ export async function createMcpClient(
   serverId: string,
   db: Database,
   options?: CreateMcpClientOptions
-): Promise<{ client: Client; serverUrl: string }> {
+): Promise<{
+  client: Client;
+  transport: StreamableHTTPClientTransport;
+  serverUrl: string;
+}> {
   // Get server details from storage
   const storage = new CredentialStorage(userId, db);
   const server = await storage.getServer(serverId);
@@ -58,18 +62,17 @@ export async function createMcpClient(
       options.onLog(fullLog);
     }
 
-    // Save to database (async, don't wait)
+    // Save to database
     await logService.saveLog(fullLog);
   });
 
-  // Create OAuth provider if authentication is required
-  const authProvider = server.requiresAuth
-    ? new McpOAuthProvider(storage, serverId)
-    : undefined;
+  // Always create OAuth provider - we don't know if auth is required until we try
+  // If the server doesn't require auth, the provider just won't be used
+  const authProvider = new McpOAuthProvider(storage, serverId);
 
   // Apply middleware to fetch and create HTTP transport
   const enhancedFetch = applyMiddlewares(loggingMiddleware)(fetch);
-  const _transport = new StreamableHTTPClientTransport(
+  const transport = new StreamableHTTPClientTransport(
     new URL(server.serverUrl),
     {
       fetch: enhancedFetch,
@@ -78,15 +81,10 @@ export async function createMcpClient(
   );
 
   // Create and return client (not connected yet)
-  const client = new Client(
-    {
-      name: "MCP Playground",
-      version: "1.0.0",
-    },
-    {
-      capabilities: {},
-    }
-  );
+  const client = new Client({
+    name: "MCP Playground",
+    version: "1.0.0",
+  });
 
-  return { client, serverUrl: server.serverUrl };
+  return { client, transport, serverUrl: server.serverUrl };
 }

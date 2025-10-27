@@ -1,0 +1,1 @@
+ALTER TABLE "log" ADD COLUMN "mcp_method" text;

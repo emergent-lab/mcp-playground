@@ -19,22 +19,23 @@ import { CredentialStorage } from "@/server/storage/credential-storage";
  * 4. Exchange authorization code for tokens using MCP SDK
  * 5. Test connection with new tokens
  * 6. Clean up temporary OAuth data
- * 7. Redirect back to playground
+ * 7. Redirect back to home
  *
- * Error handling: All errors redirect to /playground with error query param
+ * Error handling: All errors redirect to / with error query param
  */
 export async function GET(
   request: Request,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
   try {
+    const { serverId } = await params;
     // 1. Extract query parameters
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
     const receivedState = searchParams.get("state");
 
     if (!code) {
-      return redirect("/playground?error=missing_code");
+      return redirect("/?error=missing_code");
     }
 
     // 2. Verify user is authenticated
@@ -48,26 +49,22 @@ export async function GET(
 
     // 3. Get server details and verify state
     const storage = new CredentialStorage(session.user.id, db);
-    const server = await storage.getServer(params.serverId);
+    const server = await storage.getServer(serverId);
 
     if (!server) {
-      return redirect("/playground?error=server_not_found");
+      return redirect("/?error=server_not_found");
     }
 
     // Verify OAuth state for CSRF protection
-    const savedState = await storage.getOAuthState(params.serverId);
+    const savedState = await storage.getOAuthState(serverId);
     if (!savedState || savedState !== receivedState) {
-      return redirect("/playground?error=invalid_state");
+      return redirect("/?error=invalid_state");
     }
 
     // 4. Exchange authorization code for tokens
-    const { client } = await createMcpClient(
-      session.user.id,
-      params.serverId,
-      db
-    );
+    const { client } = await createMcpClient(session.user.id, serverId, db);
 
-    const oauthProvider = new McpOAuthProvider(storage, params.serverId);
+    const oauthProvider = new McpOAuthProvider(storage, serverId);
     const transport = new StreamableHTTPClientTransport(
       new URL(server.serverUrl),
       {
@@ -83,10 +80,10 @@ export async function GET(
     await client.close();
 
     // 6. Clean up temporary OAuth data
-    await storage.clearOAuthTemporaryData(params.serverId);
+    await storage.clearOAuthTemporaryData(serverId);
 
-    // 7. Redirect to playground with success message
-    return redirect("/playground?success=connected");
+    // 7. Redirect to home with success message
+    return redirect("/?success=connected");
   } catch (error) {
     // Determine error type
     let errorType = "connection_failed";
@@ -98,6 +95,6 @@ export async function GET(
       }
     }
 
-    return redirect(`/playground?error=${errorType}`);
+    return redirect(`/?error=${errorType}`);
   }
 }

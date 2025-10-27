@@ -7,6 +7,7 @@ export type RequestLog = {
   userId: string;
   method: string;
   url: string;
+  mcpMethod?: string;
   status?: number;
   statusText?: string;
   duration?: number;
@@ -46,6 +47,7 @@ export class LogService {
       userId: data.userId,
       method: data.method,
       url: data.url,
+      mcpMethod: data.mcpMethod,
       status: data.status,
       statusText: data.statusText,
       duration: data.duration,

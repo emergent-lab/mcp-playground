@@ -82,8 +82,9 @@ export const log = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
 
     // Request metadata
-    method: text("method").notNull(), // GET, POST
+    method: text("method").notNull(), // HTTP method: GET, POST
     url: text("url").notNull(),
+    mcpMethod: text("mcp_method"), // MCP JSON-RPC method: initialize, tools/list, etc.
     status: integer("status"), // HTTP status code
     statusText: text("status_text"),
     duration: integer("duration"), // in milliseconds
