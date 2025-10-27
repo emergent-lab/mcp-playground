@@ -74,7 +74,7 @@ export const log = pgTable(
   "log",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    serverId: text("server_id")
+    serverId: uuid("server_id")
       .notNull()
       .references(() => server.id, { onDelete: "cascade" }),
     userId: text("user_id")
