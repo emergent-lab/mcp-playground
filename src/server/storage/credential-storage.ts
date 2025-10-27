@@ -286,4 +286,24 @@ export class CredentialStorage {
         and(eq(server.userId, this.userId), eq(server.serverId, serverId))
       );
   }
+
+  /**
+   * Clear temporary OAuth flow data after successful authentication
+   *
+   * This removes the code verifier, state, auth URL, and expiration
+   * that were temporarily stored during the OAuth flow.
+   */
+  async clearOAuthTemporaryData(serverId: string): Promise<void> {
+    await this.db
+      .update(server)
+      .set({
+        oauthVerifier: null,
+        oauthState: null,
+        oauthAuthUrl: null,
+        oauthExpiresAt: null,
+      })
+      .where(
+        and(eq(server.userId, this.userId), eq(server.serverId, serverId))
+      );
+  }
 }

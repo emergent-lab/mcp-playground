@@ -1136,22 +1136,25 @@ pnpm run build
 - [x] LogService (src/server/services/log-service.ts)
 - [x] Database type export (src/db/index.ts)
 
-### Phase 3: MCP Infrastructure
-- [ ] Logging middleware
-- [ ] OAuth provider
-- [ ] MCP client wrapper
+### Phase 3: MCP Infrastructure ✅
+- [x] Logging middleware (src/lib/middleware/logging.ts)
+- [x] OAuth provider (src/lib/mcp/oauth-provider.ts)
+- [x] MCP client wrapper (src/server/services/mcp-client.ts)
 
-### Phase 4: tRPC
-- [ ] tRPC context
-- [ ] Server router
-- [ ] Logs router
-- [ ] Root router
-- [ ] HTTP handler
-- [ ] React client
-- [ ] Provider setup
+### Phase 4: tRPC ✅ (Updated for RSC)
+- [x] tRPC context (src/server/api/trpc.ts)
+- [x] Server router (src/server/api/routers/server.ts)
+- [x] Logs router (src/server/api/routers/logs.ts)
+- [x] Root router (src/server/api/root.ts)
+- [x] HTTP handler (src/app/api/trpc/[trpc]/route.ts)
+- [x] Query client factory (src/lib/trpc/query-client.ts)
+- [x] React client with RSC support (src/lib/trpc/client.tsx)
+- [x] Server-side tRPC helpers (src/lib/trpc/server.tsx)
+- [x] Provider setup (src/app/layout.tsx)
 
-### Phase 5: API Routes
-- [ ] OAuth callback route
+### Phase 5: API Routes ✅
+- [x] OAuth callback route (src/app/api/mcp/[serverId]/auth/callback/route.ts)
+- [x] OAuth cleanup method (CredentialStorage.clearOAuthTemporaryData)
 
 ### Phase 6: Components
 - [ ] ServerConnection
