@@ -1,13 +1,15 @@
 "use client";
 
 import { motion, useAnimation } from "framer-motion";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 type LogoutIconProps = {
   className?: string;
+  isHovered?: boolean;
 };
 
-export function LogoutIcon({ className }: LogoutIconProps) {
+export function LogoutIcon({ className, isHovered }: LogoutIconProps) {
   const logoutAnimate = useAnimation();
 
   const handleLogoutAnimate = async () => {
@@ -19,6 +21,12 @@ export function LogoutIcon({ className }: LogoutIconProps) {
       },
     });
   };
+
+  useEffect(() => {
+    if (isHovered) {
+      handleLogoutAnimate();
+    }
+  }, [isHovered]);
 
   return (
     <svg

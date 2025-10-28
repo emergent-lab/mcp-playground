@@ -14,7 +14,15 @@ const LIGHT_MODE_RADIUS = 8;
 const DARK_MODE_ROTATION = -100;
 const DARK_MODE_SCALE = 0.5;
 
-export const ThemeToggle = ({ className = "" }: { className?: string }) => {
+type ThemeToggleProps = {
+  className?: string;
+  isHovered?: boolean;
+};
+
+export const ThemeToggle = ({
+  className = "",
+  isHovered = false,
+}: ThemeToggleProps) => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -64,10 +72,14 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
       onClick={handleClick}
       type="button"
     >
-      <svg
+      <motion.svg
+        animate={{
+          rotate: isHovered ? (isDark ? -15 : 15) : 0,
+        }}
         aria-hidden="true"
         fill="currentColor"
         strokeLinecap="round"
+        transition={{ duration: 0.3, ease: "easeInOut" }}
         viewBox="0 0 32 32"
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -120,7 +132,7 @@ export const ThemeToggle = ({ className = "" }: { className?: string }) => {
             <path d="m23.4 23.4 2.9 2.9" />
           </motion.g>
         </g>
-      </svg>
+      </motion.svg>
     </button>
   );
 };

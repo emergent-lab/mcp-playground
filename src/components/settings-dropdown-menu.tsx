@@ -2,6 +2,7 @@
 
 import { CogIcon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useState } from "react";
 import { LogoutIcon } from "@/components/logout-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export function SettingsDropdownMenu({
   user,
 }: SettingsDropdownMenuProps) {
   const { theme, setTheme } = useTheme();
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const handleThemeToggle = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -74,8 +76,10 @@ export function SettingsDropdownMenu({
         <DropdownMenuItem
           className="cursor-pointer"
           onClick={handleThemeToggle}
+          onMouseEnter={() => setHoveredItem("theme")}
+          onMouseLeave={() => setHoveredItem(null)}
         >
-          <ThemeToggle className="size-4" />
+          <ThemeToggle className="size-4" isHovered={hoveredItem === "theme"} />
           <span>Toggle Theme</span>
           <Kbd className="border">M</Kbd>
         </DropdownMenuItem>
@@ -85,8 +89,10 @@ export function SettingsDropdownMenu({
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={handleSignOut}
+              onMouseEnter={() => setHoveredItem("signout")}
+              onMouseLeave={() => setHoveredItem(null)}
             >
-              <LogoutIcon />
+              <LogoutIcon isHovered={hoveredItem === "signout"} />
               <span>Sign Out</span>
             </DropdownMenuItem>
           </>
