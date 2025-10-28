@@ -11,6 +11,7 @@ import { AnimatedSidebarTrigger } from "@/components/ui/animated-sidebar-trigger
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { AddServerDialogProvider } from "@/contexts/add-server-dialog-context";
 import { CommandMenuProvider } from "@/contexts/command-menu-context";
 import { auth } from "@/lib/auth";
 import { TRPCReactProvider } from "@/lib/trpc/client";
@@ -28,7 +29,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MCP Playground",
-  description: "Test and explore Model Context Protocol servers",
+  description: "Test and explore MCP servers",
 };
 
 export default async function RootLayout({
@@ -52,34 +53,36 @@ export default async function RootLayout({
           enableSystem
         >
           <TRPCReactProvider>
-            <CommandMenuProvider>
-              <KeyboardShortcutsHandler />
-              <SidebarProvider defaultOpen={defaultOpen}>
-                <AppSidebar />
-                <SidebarInset>
-                  <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-4">
-                    <AnimatedSidebarTrigger />
-                    <div className="flex flex-1 justify-center">
-                      <CommandMenuTrigger />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {session && !session.user.isAnonymous ? (
-                        <Button asChild size="sm" variant="outline">
-                          <a href="/api/auth/signout">Sign Out</a>
-                        </Button>
-                      ) : (
-                        <SignInDialog />
-                      )}
-                      <ThemeDropdownMenu />
-                    </div>
-                  </header>
-                  <main className="flex flex-1 flex-col gap-4 p-4">
-                    {children}
-                  </main>
-                </SidebarInset>
-              </SidebarProvider>
-              <Toaster />
-            </CommandMenuProvider>
+            <AddServerDialogProvider>
+              <CommandMenuProvider>
+                <KeyboardShortcutsHandler />
+                <SidebarProvider defaultOpen={defaultOpen}>
+                  <AppSidebar />
+                  <SidebarInset>
+                    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm">
+                      <AnimatedSidebarTrigger />
+                      <div className="flex flex-1 justify-center">
+                        <CommandMenuTrigger />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {session && !session.user.isAnonymous ? (
+                          <Button asChild size="sm" variant="outline">
+                            <a href="/api/auth/signout">Sign Out</a>
+                          </Button>
+                        ) : (
+                          <SignInDialog />
+                        )}
+                        <ThemeDropdownMenu />
+                      </div>
+                    </header>
+                    <main className="flex flex-1 flex-col gap-6 overflow-auto p-8">
+                      {children}
+                    </main>
+                  </SidebarInset>
+                </SidebarProvider>
+                <Toaster />
+              </CommandMenuProvider>
+            </AddServerDialogProvider>
           </TRPCReactProvider>
         </ThemeProvider>
       </body>

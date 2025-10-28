@@ -38,7 +38,12 @@ function Effects() {
       style={{ placeItems: "center center" }}
     >
       <div aria-hidden className={styles.blur} style={{ gridArea: "1 / 1" }} />
-      <svg className={styles.noise} style={{ gridArea: "1 / 1" }}>
+      <svg
+        aria-hidden="true"
+        className={styles.noise}
+        style={{ gridArea: "1 / 1" }}
+      >
+        <title>Decorative noise effect</title>
         <filter id="noise">
           <feTurbulence
             baseFrequency="1"

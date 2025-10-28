@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ServerIcon } from "lucide-react";
+import { ChevronUpIcon, PlusIcon, ServerIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -14,6 +15,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { useAddServerDialog } from "@/contexts/add-server-dialog-context";
 import { useTRPC } from "@/lib/trpc/client";
 
 type CommandMenuProps = {
@@ -23,12 +25,17 @@ type CommandMenuProps = {
 
 export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const { theme, setTheme } = useTheme();
+  const { setOpen: setAddServerDialogOpen } = useAddServerDialog();
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
   const api = useTRPC();
   const { data: servers = [], isLoading } = useQuery({
     ...api.server.list.queryOptions(),
     enabled: open,
   });
+
+  // Check if we're on a server page
+  const isServerPage = pathname?.startsWith("/server/");
 
   useEffect(() => {
     setMounted(true);
@@ -41,6 +48,23 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 
   const handleThemeToggle = () => {
     setTheme(theme === "dark" ? "light" : "dark");
+    onOpenChange(false);
+  };
+
+  const handleAddServer = () => {
+    onOpenChange(false);
+    setAddServerDialogOpen(true);
+  };
+
+  const handleToggleLogs = () => {
+    if (
+      typeof window !== "undefined" &&
+      (window as Window & { toggleRequestLogs?: () => void }).toggleRequestLogs
+    ) {
+      (
+        window as Window & { toggleRequestLogs?: () => void }
+      ).toggleRequestLogs?.();
+    }
     onOpenChange(false);
   };
 
@@ -91,10 +115,28 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
           </>
         )}
 
+        <CommandGroup heading="Actions">
+          <CommandItem onSelect={handleAddServer}>
+            <PlusIcon />
+            <span>Add Server</span>
+            <span className="ml-auto text-muted-foreground text-xs">N</span>
+          </CommandItem>
+          {isServerPage && (
+            <CommandItem onSelect={handleToggleLogs}>
+              <ChevronUpIcon />
+              <span>Toggle Request Logs</span>
+              <span className="ml-auto text-muted-foreground text-xs">L</span>
+            </CommandItem>
+          )}
+        </CommandGroup>
+
+        <CommandSeparator />
+
         <CommandGroup heading="Settings">
           <CommandItem onSelect={handleThemeToggle}>
             <ThemeToggle className="size-4" />
             <span>Toggle Theme</span>
+            <span className="ml-auto text-muted-foreground text-xs">M</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>

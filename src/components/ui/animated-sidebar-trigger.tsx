@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
 type AnimatedSidebarTriggerProps = {
@@ -55,11 +55,8 @@ export function AnimatedSidebarTrigger({
           </div>
         </button>
       </TooltipTrigger>
-      <TooltipContent className="px-1.5 py-0.5 text-[9px]" side="bottom">
-        <KbdGroup>
-          <Kbd className="h-3.5 min-w-3.5 px-0.5 text-[9px]">⌘</Kbd>
-          <Kbd className="h-3.5 min-w-3.5 px-0.5 text-[9px]">B</Kbd>
-        </KbdGroup>
+      <TooltipContent className="px-1.5 py-0.5 text-xs" side="bottom">
+        <Kbd className="h-3.5 min-w-3.5 px-0.5 text-xs">B</Kbd>
       </TooltipContent>
     </Tooltip>
   );

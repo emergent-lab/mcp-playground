@@ -16,13 +16,6 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTRPC } from "@/lib/trpc/client";
@@ -79,10 +72,11 @@ function ToolsList({
               <Item
                 className={
                   selectedTool === typedTool.name
-                    ? "cursor-pointer bg-accent"
-                    : "cursor-pointer"
+                    ? "fade-in slide-in-from-bottom-2 animate-in cursor-pointer bg-accent"
+                    : "fade-in slide-in-from-bottom-2 animate-in cursor-pointer"
                 }
                 onClick={() => onToolSelect(typedTool.name)}
+                style={{ animationDelay: `${index * 30}ms` }}
               >
                 <ItemContent>
                   <ItemTitle>{typedTool.name}</ItemTitle>
@@ -120,6 +114,113 @@ function handleUnauthorizedError(
       }
     }
   }
+}
+
+type ResourcesListProps = {
+  resources: unknown[] | undefined;
+  resourcesLoading: boolean;
+};
+
+function ResourcesList({ resources, resourcesLoading }: ResourcesListProps) {
+  if (resourcesLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!resources || resources.length === 0) {
+    return (
+      <Empty>
+        <EmptyTitle>No resources available</EmptyTitle>
+        <EmptyDescription>
+          This server does not expose any resources
+        </EmptyDescription>
+      </Empty>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-[400px]">
+      <ItemGroup>
+        {resources.map((resource, index: number) => {
+          const typedResource = resource as { uri: string; name: string };
+          return (
+            <Fragment key={typedResource.uri}>
+              <Item
+                className="fade-in slide-in-from-bottom-2 animate-in"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <ItemContent>
+                  <ItemTitle>{typedResource.name}</ItemTitle>
+                  <ItemDescription className="truncate">
+                    {typedResource.uri}
+                  </ItemDescription>
+                </ItemContent>
+              </Item>
+              {index !== resources.length - 1 && <ItemSeparator />}
+            </Fragment>
+          );
+        })}
+      </ItemGroup>
+    </ScrollArea>
+  );
+}
+
+type PromptsListProps = {
+  prompts: unknown[] | undefined;
+  promptsLoading: boolean;
+};
+
+function PromptsList({ prompts, promptsLoading }: PromptsListProps) {
+  if (promptsLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!prompts || prompts.length === 0) {
+    return (
+      <Empty>
+        <EmptyTitle>No prompts available</EmptyTitle>
+        <EmptyDescription>
+          This server does not expose any prompts
+        </EmptyDescription>
+      </Empty>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-[400px]">
+      <ItemGroup>
+        {prompts.map((prompt, index: number) => {
+          const typedPrompt = prompt as {
+            name: string;
+            description?: string;
+          };
+          return (
+            <Fragment key={typedPrompt.name}>
+              <Item
+                className="fade-in slide-in-from-bottom-2 animate-in"
+                style={{ animationDelay: `${index * 30}ms` }}
+              >
+                <ItemContent>
+                  <ItemTitle>{typedPrompt.name}</ItemTitle>
+                  <ItemDescription>
+                    {String(typedPrompt.description || "")}
+                  </ItemDescription>
+                </ItemContent>
+              </Item>
+              {index !== prompts.length - 1 && <ItemSeparator />}
+            </Fragment>
+          );
+        })}
+      </ItemGroup>
+    </ScrollArea>
+  );
 }
 
 function useServerCapabilities(serverId: string | undefined) {
@@ -216,7 +317,7 @@ export function Playground({
   }, [toolsError, resourcesError, promptsError]);
 
   // Clear selections when changing servers
-  const handleServerChange = (serverId: string) => {
+  const _handleServerChange = (serverId: string) => {
     setSelectedServer(serverId);
     setSelectedTool(undefined);
     onServerChange?.(serverId);
@@ -228,35 +329,34 @@ export function Playground({
     setSelectedTool(undefined);
   };
 
+  const currentServer = servers?.find((s) => s.serverId === selectedServer);
+  const serverTitle =
+    currentServer?.serverName || currentServer?.serverUrl || "Server";
+
   return (
     <div className="space-y-6">
-      {/* Server Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Server</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select onValueChange={handleServerChange} value={selectedServer}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a server" />
-            </SelectTrigger>
-            <SelectContent>
-              {servers?.map((server) => (
-                <SelectItem key={server.serverId} value={server.serverId}>
-                  {server.serverName || server.serverUrl}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {/* Server Title */}
+      {selectedServer && (
+        <div>
+          <h1 className="font-semibold text-2xl tracking-tight">
+            {serverTitle}
+          </h1>
+          {currentServer?.serverName && (
+            <p className="mt-1 text-muted-foreground text-sm">
+              {currentServer.serverUrl}
+            </p>
+          )}
+        </div>
+      )}
 
       {selectedServer && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Left: Tools/Resources/Prompts */}
           <Card>
-            <CardHeader>
-              <CardTitle>Capabilities</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="font-medium text-muted-foreground text-sm">
+                Capabilities
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs onValueChange={handleTabChange} value={selectedTab}>
@@ -299,77 +399,18 @@ export function Playground({
 
                 {/* Resources Tab */}
                 <TabsContent value="resources">
-                  {resourcesLoading && (
-                    <div className="flex justify-center py-8">
-                      <Spinner />
-                    </div>
-                  )}
-                  {!resourcesLoading &&
-                    (!resources || resources.length === 0) && (
-                      <Empty>
-                        <EmptyTitle>No resources available</EmptyTitle>
-                        <EmptyDescription>
-                          This server does not expose any resources
-                        </EmptyDescription>
-                      </Empty>
-                    )}
-                  {!resourcesLoading && resources && resources.length > 0 && (
-                    <ScrollArea className="h-[400px]">
-                      <ItemGroup>
-                        {resources?.map((resource, index: number) => (
-                          <Fragment key={resource.uri}>
-                            <Item>
-                              <ItemContent>
-                                <ItemTitle>{resource.name}</ItemTitle>
-                                <ItemDescription className="truncate">
-                                  {resource.uri}
-                                </ItemDescription>
-                              </ItemContent>
-                            </Item>
-                            {index !== resources.length - 1 && (
-                              <ItemSeparator />
-                            )}
-                          </Fragment>
-                        ))}
-                      </ItemGroup>
-                    </ScrollArea>
-                  )}
+                  <ResourcesList
+                    resources={resources}
+                    resourcesLoading={resourcesLoading}
+                  />
                 </TabsContent>
 
                 {/* Prompts Tab */}
                 <TabsContent value="prompts">
-                  {promptsLoading && (
-                    <div className="flex justify-center py-8">
-                      <Spinner />
-                    </div>
-                  )}
-                  {!promptsLoading && (!prompts || prompts.length === 0) && (
-                    <Empty>
-                      <EmptyTitle>No prompts available</EmptyTitle>
-                      <EmptyDescription>
-                        This server does not expose any prompts
-                      </EmptyDescription>
-                    </Empty>
-                  )}
-                  {!promptsLoading && prompts && prompts.length > 0 && (
-                    <ScrollArea className="h-[400px]">
-                      <ItemGroup>
-                        {prompts?.map((prompt, index: number) => (
-                          <Fragment key={prompt.name}>
-                            <Item>
-                              <ItemContent>
-                                <ItemTitle>{prompt.name}</ItemTitle>
-                                <ItemDescription>
-                                  {String(prompt.description || "")}
-                                </ItemDescription>
-                              </ItemContent>
-                            </Item>
-                            {index !== prompts.length - 1 && <ItemSeparator />}
-                          </Fragment>
-                        ))}
-                      </ItemGroup>
-                    </ScrollArea>
-                  )}
+                  <PromptsList
+                    prompts={prompts}
+                    promptsLoading={promptsLoading}
+                  />
                 </TabsContent>
               </Tabs>
             </CardContent>

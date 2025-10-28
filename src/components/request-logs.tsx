@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Accordion,
@@ -12,13 +12,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +19,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 type RequestLogsProps = {
   serverId?: string;
+  onLogCountChange?: (count: number) => void;
 };
 
 function getStatusVariant(
@@ -57,16 +51,94 @@ function formatTimestamp(date: Date): string {
   return `${month} ${day} ${hours}:${minutes}:${seconds}.${ms}`;
 }
 
-export function RequestLogs({ serverId }: RequestLogsProps) {
+type LogItemProps = {
+  log: {
+    id: string;
+    status: number | null;
+    mcpMethod: string | null;
+    method: string;
+    createdAt: string;
+    duration: number | null;
+    requestBody?: unknown;
+    responseBody?: unknown;
+    error: string | null;
+  };
+  isNew: boolean;
+};
+
+function LogItem({ log, isNew }: LogItemProps) {
+  return (
+    <AccordionItem
+      className={
+        isNew ? "fade-in slide-in-from-bottom-2 animate-in duration-200" : ""
+      }
+      key={log.id}
+      value={log.id}
+    >
+      <AccordionTrigger className="cursor-pointer hover:no-underline">
+        <div className="flex w-full items-center gap-2 pr-2 text-sm">
+          <Badge variant={getStatusVariant(log.status ?? undefined)}>
+            {log.status || "ERR"}
+          </Badge>
+          {log.mcpMethod ? (
+            <Badge className="font-mono" variant="outline">
+              {log.mcpMethod}
+            </Badge>
+          ) : (
+            <span className="font-mono text-muted-foreground">
+              {log.method}
+            </span>
+          )}
+          <span className="font-mono text-muted-foreground text-xs">
+            {formatTimestamp(new Date(log.createdAt))}
+          </span>
+          <span className="flex-1" />
+          <span className="text-muted-foreground text-xs">
+            {log.duration}ms
+          </span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="space-y-4 pt-4">
+          {/* Request Details */}
+          <div>
+            <h4 className="mb-2 font-semibold">Request</h4>
+            <pre className="wrap-break-word whitespace-pre-wrap rounded-sm bg-muted p-4 font-mono text-xs">
+              {JSON.stringify(log.requestBody, null, 2)}
+            </pre>
+          </div>
+
+          <Separator />
+
+          {/* Response Details */}
+          <div>
+            <h4 className="mb-2 font-semibold">Response</h4>
+            {log.error ? (
+              <div className="text-destructive">{log.error}</div>
+            ) : (
+              <pre className="wrap-break-word whitespace-pre-wrap rounded-sm bg-muted p-4 font-mono text-xs">
+                {JSON.stringify(log.responseBody, null, 2)}
+              </pre>
+            )}
+          </div>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+export function RequestLogs({ serverId, onLogCountChange }: RequestLogsProps) {
   const api = useTRPC();
   const queryClient = useQueryClient();
   const [showConnectionSetup, setShowConnectionSetup] = useState(false);
   const [serverSelectedAt, setServerSelectedAt] = useState<Date | null>(null);
+  const seenLogIds = useRef(new Set<string>());
 
   // Update timestamp when server changes
   useEffect(() => {
     if (serverId) {
       setServerSelectedAt(new Date());
+      seenLogIds.current.clear();
     }
   }, [serverId]);
 
@@ -90,6 +162,13 @@ export function RequestLogs({ serverId }: RequestLogsProps) {
           log.mcpMethod !== "notifications/initialized"
       );
 
+  // Notify parent of log count changes
+  useEffect(() => {
+    if (onLogCountChange && logs) {
+      onLogCountChange(logs.length);
+    }
+  }, [logs, onLogCountChange]);
+
   const clearMutation = useMutation(
     api.logs.clear.mutationOptions({
       onSuccess: () => {
@@ -103,36 +182,31 @@ export function RequestLogs({ serverId }: RequestLogsProps) {
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Request Logs</CardTitle>
-          <CardAction>
-            <ButtonGroup>
-              <Button
-                onClick={() => setShowConnectionSetup(!showConnectionSetup)}
-                size="sm"
-                variant="outline"
-              >
-                {showConnectionSetup ? "Hide" : "Show"} Initialization
-              </Button>
-              <Button
-                disabled={!(logs?.length && serverId)}
-                onClick={() => {
-                  if (serverId) {
-                    clearMutation.mutate({ serverId });
-                  }
-                }}
-                size="sm"
-                variant="outline"
-              >
-                Clear Logs
-              </Button>
-            </ButtonGroup>
-          </CardAction>
-        </div>
-      </CardHeader>
-      <CardContent>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-border border-b px-4 py-2">
+        <ButtonGroup>
+          <Button
+            onClick={() => setShowConnectionSetup(!showConnectionSetup)}
+            size="sm"
+            variant="outline"
+          >
+            {showConnectionSetup ? "Hide" : "Show"} Initialization
+          </Button>
+          <Button
+            disabled={!(logs?.length && serverId)}
+            onClick={() => {
+              if (serverId) {
+                clearMutation.mutate({ serverId });
+              }
+            }}
+            size="sm"
+            variant="outline"
+          >
+            Clear Logs
+          </Button>
+        </ButtonGroup>
+      </div>
+      <div className="flex-1 overflow-hidden">
         {serverId ? (
           !logs || logs.length === 0 ? (
             <Empty>
@@ -142,62 +216,15 @@ export function RequestLogs({ serverId }: RequestLogsProps) {
               </EmptyDescription>
             </Empty>
           ) : (
-            <ScrollArea className="h-[500px] pr-4">
+            <ScrollArea className="h-full px-4">
               <Accordion className="w-full" collapsible type="single">
-                {logs.map((log) => (
-                  <AccordionItem key={log.id} value={log.id}>
-                    <AccordionTrigger className="cursor-pointer hover:no-underline">
-                      <div className="flex w-full items-center gap-2 pr-2 text-sm">
-                        <Badge
-                          variant={getStatusVariant(log.status ?? undefined)}
-                        >
-                          {log.status || "ERR"}
-                        </Badge>
-                        {log.mcpMethod ? (
-                          <Badge className="font-mono" variant="outline">
-                            {log.mcpMethod}
-                          </Badge>
-                        ) : (
-                          <span className="font-mono text-muted-foreground">
-                            {log.method}
-                          </span>
-                        )}
-                        <span className="font-mono text-muted-foreground text-xs">
-                          {formatTimestamp(new Date(log.createdAt))}
-                        </span>
-                        <span className="flex-1" />
-                        <span className="text-muted-foreground text-xs">
-                          {log.duration}ms
-                        </span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-4 pt-4">
-                        {/* Request Details */}
-                        <div>
-                          <h4 className="mb-2 font-semibold">Request</h4>
-                          <pre className="wrap-break-word whitespace-pre-wrap rounded-sm bg-muted p-4 font-mono text-xs">
-                            {JSON.stringify(log.requestBody, null, 2)}
-                          </pre>
-                        </div>
-
-                        <Separator />
-
-                        {/* Response Details */}
-                        <div>
-                          <h4 className="mb-2 font-semibold">Response</h4>
-                          {log.error ? (
-                            <div className="text-destructive">{log.error}</div>
-                          ) : (
-                            <pre className="wrap-break-word whitespace-pre-wrap rounded-sm bg-muted p-4 font-mono text-xs">
-                              {JSON.stringify(log.responseBody, null, 2)}
-                            </pre>
-                          )}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
+                {logs.map((log) => {
+                  const isNew = !seenLogIds.current.has(log.id);
+                  if (isNew) {
+                    seenLogIds.current.add(log.id);
+                  }
+                  return <LogItem isNew={isNew} key={log.id} log={log} />;
+                })}
               </Accordion>
             </ScrollArea>
           )
@@ -209,7 +236,7 @@ export function RequestLogs({ serverId }: RequestLogsProps) {
             </EmptyDescription>
           </Empty>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
