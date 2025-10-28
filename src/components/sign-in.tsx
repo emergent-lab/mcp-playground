@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { MailIcon } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
@@ -18,10 +19,12 @@ import { GithubDark } from "./ui/svgs/githubDark";
 import { GithubLight } from "./ui/svgs/githubLight";
 
 const formSchema = z.object({
-  email: z.string().email("Must be a valid email address"),
+  email: z.email("Must be a valid email address"),
 });
 
 export function SignIn() {
+  const lastLoginMethod = authClient.getLastUsedLoginMethod();
+
   const magicLinkMutation = useMutation({
     mutationFn: async (email: string) => {
       await authClient.signIn.magicLink({ email });
@@ -60,9 +63,18 @@ export function SignIn() {
           {(field) => {
             const isInvalid =
               field.state.meta.isTouched && field.state.meta.errors.length > 0;
+            const isLastUsedEmail =
+              lastLoginMethod === "email" || lastLoginMethod === "magic-link";
             return (
               <Field data-invalid={isInvalid}>
-                <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+                  {isLastUsedEmail && (
+                    <Badge className="text-xs" variant="secondary">
+                      Last used
+                    </Badge>
+                  )}
+                </div>
                 <InputGroup>
                   <InputGroupInput
                     aria-invalid={isInvalid}
@@ -103,13 +115,30 @@ export function SignIn() {
         </div>
       </div>
 
-      <Button asChild className="w-full" variant="outline">
-        <a href="/api/auth/signin/github">
+      <div className="relative">
+        <Button
+          className="w-full"
+          onClick={async () => {
+            await authClient.signIn.social({
+              provider: "github",
+              callbackURL: "/",
+            });
+          }}
+          variant="outline"
+        >
           <GithubLight className="size-5 dark:hidden" />
           <GithubDark className="hidden size-5 dark:block" />
           Continue with GitHub
-        </a>
-      </Button>
+        </Button>
+        {lastLoginMethod === "github" && (
+          <Badge
+            className="-top-2 absolute right-2 text-xs"
+            variant="secondary"
+          >
+            Last used
+          </Badge>
+        )}
+      </div>
     </div>
   );
 }

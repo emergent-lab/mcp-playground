@@ -26,7 +26,8 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "noConsole": "off"
       },
       "style": {
         "noMagicNumbers": "off"

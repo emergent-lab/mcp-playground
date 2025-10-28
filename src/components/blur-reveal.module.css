@@ -1,8 +1,7 @@
 .root {
-  --height: 50px;
   position: relative;
   overflow-x: clip;
-  display: flex;
+  display: inline-flex;
 }
 
 .banner {
@@ -12,7 +11,7 @@
 
 .blur {
   width: 120%;
-  height: calc(100% + var(--height));
+  height: 100%;
   mask-image: linear-gradient(
     to left,
     transparent 0%,
@@ -26,7 +25,7 @@
 
 .noise {
   width: 120%;
-  height: calc(100% + var(--height));
+  height: 100%;
   mask-image: linear-gradient(
     to left,
     transparent 0%,

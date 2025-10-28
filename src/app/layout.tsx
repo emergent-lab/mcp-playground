@@ -4,11 +4,10 @@ import { cookies, headers } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
 import { CommandMenuTrigger } from "@/components/command-menu-trigger";
 import { KeyboardShortcutsHandler } from "@/components/keyboard-shortcuts-handler";
+import { SettingsDropdownMenu } from "@/components/settings-dropdown-menu";
 import { SignInDialog } from "@/components/sign-in-dialog";
-import { ThemeDropdownMenu } from "@/components/theme-dropdown-menu";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AnimatedSidebarTrigger } from "@/components/ui/animated-sidebar-trigger";
-import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { AddServerDialogProvider } from "@/contexts/add-server-dialog-context";
@@ -65,14 +64,19 @@ export default async function RootLayout({
                         <CommandMenuTrigger />
                       </div>
                       <div className="flex items-center gap-1">
-                        {session && !session.user.isAnonymous ? (
-                          <Button asChild size="sm" variant="outline">
-                            <a href="/api/auth/signout">Sign Out</a>
-                          </Button>
-                        ) : (
+                        {!session || session.user.isAnonymous ? (
                           <SignInDialog />
-                        )}
-                        <ThemeDropdownMenu />
+                        ) : null}
+                        <SettingsDropdownMenu
+                          user={
+                            session && !session.user.isAnonymous
+                              ? {
+                                  name: session.user.name,
+                                  email: session.user.email,
+                                }
+                              : null
+                          }
+                        />
                       </div>
                     </header>
                     <main className="flex flex-1 flex-col gap-6 overflow-auto p-8">
