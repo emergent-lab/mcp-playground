@@ -22,7 +22,20 @@ export function useKeyboardShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ignore if user is typing in an input field
+      const key = event.key.toLowerCase();
+      const callback = shortcuts[key];
+
+      if (!callback) {
+        return;
+      }
+
+      // For Cmd+K or Ctrl+K, always handle it (even in input fields)
+      if ((event.metaKey || event.ctrlKey) && key === "k") {
+        callback(event);
+        return;
+      }
+
+      // For other shortcuts, ignore if user is typing in an input field
       const target = event.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
@@ -32,13 +45,8 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      const key = event.key.toLowerCase();
-      const callback = shortcuts[key];
-
-      if (callback) {
-        event.preventDefault();
-        callback(event);
-      }
+      event.preventDefault();
+      callback(event);
     };
 
     window.addEventListener("keydown", handleKeyDown);

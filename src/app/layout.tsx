@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies, headers } from "next/headers";
+import { AppSidebar } from "@/components/app-sidebar";
+import { CommandMenuTrigger } from "@/components/command-menu-trigger";
 import { KeyboardShortcutsHandler } from "@/components/keyboard-shortcuts-handler";
+import { SignInDialog } from "@/components/sign-in-dialog";
+import { ThemeDropdownMenu } from "@/components/theme-dropdown-menu";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AnimatedSidebarTrigger } from "@/components/ui/animated-sidebar-trigger";
+import { Button } from "@/components/ui/button";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { CommandMenuProvider } from "@/contexts/command-menu-context";
+import { auth } from "@/lib/auth";
 import { TRPCReactProvider } from "@/lib/trpc/client";
 import "./globals.css";
 
@@ -21,11 +31,15 @@ export const metadata: Metadata = {
   description: "Test and explore Model Context Protocol servers",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+  const session = await auth.api.getSession({ headers: await headers() });
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -38,9 +52,34 @@ export default function RootLayout({
           enableSystem
         >
           <TRPCReactProvider>
-            <KeyboardShortcutsHandler />
-            {children}
-            <Toaster />
+            <CommandMenuProvider>
+              <KeyboardShortcutsHandler />
+              <SidebarProvider defaultOpen={defaultOpen}>
+                <AppSidebar />
+                <SidebarInset>
+                  <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-4">
+                    <AnimatedSidebarTrigger />
+                    <div className="flex flex-1 justify-center">
+                      <CommandMenuTrigger />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {session && !session.user.isAnonymous ? (
+                        <Button asChild size="sm" variant="outline">
+                          <a href="/api/auth/signout">Sign Out</a>
+                        </Button>
+                      ) : (
+                        <SignInDialog />
+                      )}
+                      <ThemeDropdownMenu />
+                    </div>
+                  </header>
+                  <main className="flex flex-1 flex-col gap-4 p-4">
+                    {children}
+                  </main>
+                </SidebarInset>
+              </SidebarProvider>
+              <Toaster />
+            </CommandMenuProvider>
           </TRPCReactProvider>
         </ThemeProvider>
       </body>

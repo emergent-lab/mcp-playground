@@ -11,11 +11,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function SignInDialog() {
+type SignInDialogProps = {
+  className?: string;
+};
+
+export function SignInDialog({ className }: SignInDialogProps = {}) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button className={className} size="sm" variant="outline">
           Sign In
         </Button>
       </DialogTrigger>
