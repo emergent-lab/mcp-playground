@@ -90,13 +90,43 @@ const redactValue = (value: unknown): unknown => {
   return DEFAULT_MASK;
 };
 
+const sanitizeValue = (value: unknown): unknown => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const sanitizedItems: unknown[] = [];
+    for (const item of value) {
+      sanitizedItems.push(sanitizeBody(item));
+    }
+    return sanitizedItems;
+  }
+  if (isPlainObject(value)) {
+    return sanitizeBody(value);
+  }
+  return value;
+};
+
+const sanitizeFieldValue = (key: string, value: unknown): unknown => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (fieldLooksSensitive(key)) {
+    return redactValue(value);
+  }
+  return sanitizeValue(value);
+};
+
 export const sanitizeBody = <T>(body: T): T => {
   if (Array.isArray(body)) {
-    const sanitized: unknown[] = [];
+    const sanitizedItems: unknown[] = [];
     for (const item of body) {
-      sanitized.push(sanitizeBody(item));
+      sanitizedItems.push(sanitizeBody(item));
     }
-    return sanitized as T;
+    return sanitizedItems as T;
   }
 
   if (!isPlainObject(body)) {
@@ -105,32 +135,7 @@ export const sanitizeBody = <T>(body: T): T => {
 
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body)) {
-    if (value === null || value === undefined) {
-      sanitized[key] = value;
-      continue;
-    }
-
-    if (fieldLooksSensitive(key)) {
-      sanitized[key] = redactValue(value);
-      continue;
-    }
-
-    if (typeof value === "string") {
-      sanitized[key] = value;
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      sanitized[key] = sanitizeBody(value);
-      continue;
-    }
-
-    if (isPlainObject(value)) {
-      sanitized[key] = sanitizeBody(value);
-      continue;
-    }
-
-    sanitized[key] = value;
+    sanitized[key] = sanitizeFieldValue(key, value);
   }
   return sanitized as T;
 };
@@ -139,11 +144,11 @@ const DEFAULT_IP_SALT = "mcp-playground-ip-salt-2024";
 
 export const hashIpAddress = (ip: string | undefined): string | undefined => {
   if (!ip) {
-    return undefined;
+    return;
   }
   const normalized = ip.trim();
   if (!normalized) {
-    return undefined;
+    return;
   }
   const salt = process.env.IP_HASH_SALT ?? DEFAULT_IP_SALT;
   const hashed = createHash("sha256")
