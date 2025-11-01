@@ -79,9 +79,9 @@ export default async function RootLayout({
                         />
                       </div>
                     </header>
-                    <main className="flex flex-1 flex-col gap-6 overflow-auto p-8">
+                    <div className="flex flex-1 flex-col gap-6 p-8">
                       {children}
-                    </main>
+                    </div>
                   </SidebarInset>
                 </SidebarProvider>
                 <Toaster />

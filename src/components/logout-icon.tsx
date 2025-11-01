@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useAnimation } from "framer-motion";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 type LogoutIconProps = {
@@ -12,7 +12,7 @@ type LogoutIconProps = {
 export function LogoutIcon({ className, isHovered }: LogoutIconProps) {
   const logoutAnimate = useAnimation();
 
-  const handleLogoutAnimate = async () => {
+  const handleLogoutAnimate = useCallback(async () => {
     await logoutAnimate.start({
       x: [0, 3, 0],
       transition: {
@@ -20,13 +20,13 @@ export function LogoutIcon({ className, isHovered }: LogoutIconProps) {
         ease: "easeInOut",
       },
     });
-  };
+  }, [logoutAnimate]);
 
   useEffect(() => {
     if (isHovered) {
       handleLogoutAnimate();
     }
-  }, [isHovered]);
+  }, [isHovered, handleLogoutAnimate]);
 
   return (
     <svg

@@ -42,21 +42,32 @@ export class LogService {
    * Save a request/response log entry
    */
   async saveLog(data: RequestLog): Promise<void> {
-    await this.db.insert(log).values({
-      serverId: data.serverId,
-      userId: data.userId,
-      method: data.method,
-      url: data.url,
-      mcpMethod: data.mcpMethod,
-      status: data.status,
-      statusText: data.statusText,
-      duration: data.duration,
-      requestHeaders: data.requestHeaders,
-      requestBody: data.requestBody,
-      responseHeaders: data.responseHeaders,
-      responseBody: data.responseBody,
-      error: data.error,
-    });
+    try {
+      await this.db.insert(log).values({
+        serverId: data.serverId,
+        userId: data.userId,
+        method: data.method,
+        url: data.url,
+        mcpMethod: data.mcpMethod,
+        status: data.status,
+        statusText: data.statusText,
+        duration: data.duration,
+        requestHeaders: data.requestHeaders,
+        requestBody: data.requestBody,
+        responseHeaders: data.responseHeaders,
+        responseBody: data.responseBody,
+        error: data.error,
+      });
+    } catch (error) {
+      // Silently ignore foreign key violations - server may have been deleted
+      // while MCP client connection was still active in memory
+      if (error instanceof Error && "code" in error && error.code === "23503") {
+        // Foreign key constraint violation - server was deleted
+        return;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**

@@ -11,7 +11,8 @@ import { makeQueryClient } from "./query-client";
 /**
  * Create type-safe tRPC hooks for Client Components
  */
-export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+export const { TRPCProvider, useTRPC, useTRPCClient } =
+  createTRPCContext<AppRouter>();
 
 let browserQueryClient: QueryClient;
 

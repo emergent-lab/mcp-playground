@@ -1,9 +1,12 @@
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import {
   CallToolResultSchema,
+  CompleteResultSchema,
+  GetPromptResultSchema,
   ListPromptsResultSchema,
   ListResourcesResultSchema,
   ListToolsResultSchema,
+  ReadResourceResultSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -20,6 +23,29 @@ export const serverRouter = router({
     const servers = await storage.getUserServers();
     return servers;
   }),
+
+  /**
+   * Get a single server by ID
+   */
+  getById: protectedProcedure
+    .input(
+      z.object({
+        serverId: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const storage = new CredentialStorage(ctx.userId, ctx.db);
+      const server = await storage.getServer(input.serverId);
+
+      if (!server) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Server not found",
+        });
+      }
+
+      return server;
+    }),
 
   /**
    * Connect to an MCP server (handles OAuth if needed)
@@ -163,6 +189,7 @@ export const serverRouter = router({
     .input(
       z.object({
         serverId: z.string(),
+        cursor: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -177,11 +204,17 @@ export const serverRouter = router({
 
         await client.connect(transport);
         const result = await client.request(
-          { method: "tools/list", params: {} },
+          {
+            method: "tools/list",
+            params: input.cursor ? { cursor: input.cursor } : {},
+          },
           ListToolsResultSchema
         );
         await client.close();
-        return result.tools;
+        return {
+          tools: result.tools,
+          nextCursor: result.nextCursor,
+        };
       } catch (error) {
         // Check if it's an auth error
         const isAuthError =
@@ -196,7 +229,8 @@ export const serverRouter = router({
           if (authUrl) {
             throw new TRPCError({
               code: "UNAUTHORIZED",
-              message: JSON.stringify({ authUrl }),
+              message: `Authentication required. Please authorize at: ${authUrl}`,
+              cause: { authUrl },
             });
           }
         }
@@ -216,6 +250,7 @@ export const serverRouter = router({
     .input(
       z.object({
         serverId: z.string(),
+        cursor: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -230,11 +265,17 @@ export const serverRouter = router({
 
         await client.connect(transport);
         const result = await client.request(
-          { method: "resources/list", params: {} },
+          {
+            method: "resources/list",
+            params: input.cursor ? { cursor: input.cursor } : {},
+          },
           ListResourcesResultSchema
         );
         await client.close();
-        return result.resources;
+        return {
+          resources: result.resources,
+          nextCursor: result.nextCursor,
+        };
       } catch (error) {
         // Check if it's an auth error
         const isAuthError =
@@ -249,7 +290,8 @@ export const serverRouter = router({
           if (authUrl) {
             throw new TRPCError({
               code: "UNAUTHORIZED",
-              message: JSON.stringify({ authUrl }),
+              message: `Authentication required. Please authorize at: ${authUrl}`,
+              cause: { authUrl },
             });
           }
         }
@@ -269,6 +311,7 @@ export const serverRouter = router({
     .input(
       z.object({
         serverId: z.string(),
+        cursor: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -283,11 +326,17 @@ export const serverRouter = router({
 
         await client.connect(transport);
         const result = await client.request(
-          { method: "prompts/list", params: {} },
+          {
+            method: "prompts/list",
+            params: input.cursor ? { cursor: input.cursor } : {},
+          },
           ListPromptsResultSchema
         );
         await client.close();
-        return result.prompts;
+        return {
+          prompts: result.prompts,
+          nextCursor: result.nextCursor,
+        };
       } catch (error) {
         // Check if it's an auth error
         const isAuthError =
@@ -302,7 +351,8 @@ export const serverRouter = router({
           if (authUrl) {
             throw new TRPCError({
               code: "UNAUTHORIZED",
-              message: JSON.stringify({ authUrl }),
+              message: `Authentication required. Please authorize at: ${authUrl}`,
+              cause: { authUrl },
             });
           }
         }
@@ -352,6 +402,147 @@ export const serverRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message:
             error instanceof Error ? error.message : "Failed to call tool",
+        });
+      }
+    }),
+
+  /**
+   * Get a prompt from the server (with optional arguments)
+   */
+  getPrompt: protectedProcedure
+    .input(
+      z.object({
+        serverId: z.string(),
+        promptName: z.string(),
+        arguments: z.record(z.string(), z.unknown()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { client, transport } = await createMcpClient(
+        ctx.userId,
+        input.serverId,
+        ctx.db
+      );
+
+      try {
+        await client.connect(transport);
+        const result = await client.request(
+          {
+            method: "prompts/get",
+            params: {
+              name: input.promptName,
+              arguments: input.arguments || {},
+            },
+          },
+          GetPromptResultSchema
+        );
+        await client.close();
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error ? error.message : "Failed to get prompt",
+        });
+      }
+    }),
+
+  /**
+   * Read a resource from the server
+   */
+  readResource: protectedProcedure
+    .input(
+      z.object({
+        serverId: z.string(),
+        uri: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { client, transport } = await createMcpClient(
+        ctx.userId,
+        input.serverId,
+        ctx.db
+      );
+
+      try {
+        await client.connect(transport);
+        const result = await client.request(
+          {
+            method: "resources/read",
+            params: {
+              uri: input.uri,
+            },
+          },
+          ReadResourceResultSchema
+        );
+        await client.close();
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error ? error.message : "Failed to read resource",
+        });
+      }
+    }),
+
+  /**
+   * Get completion suggestions for prompt arguments or resource URIs
+   */
+  complete: protectedProcedure
+    .input(
+      z.object({
+        serverId: z.string(),
+        ref: z.union([
+          z.object({ type: z.literal("ref/prompt"), name: z.string() }),
+          z.object({ type: z.literal("ref/resource"), uri: z.string() }),
+        ]),
+        argument: z.object({ name: z.string(), value: z.string() }),
+        context: z
+          .object({ arguments: z.record(z.string(), z.string()) })
+          .optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { client, transport } = await createMcpClient(
+        ctx.userId,
+        input.serverId,
+        ctx.db
+      );
+
+      try {
+        await client.connect(transport);
+
+        const result = await client.request(
+          {
+            method: "completion/complete",
+            params: {
+              ref: input.ref,
+              argument: input.argument,
+              ...(input.context && { context: input.context }),
+            },
+          },
+          CompleteResultSchema
+        );
+
+        await client.close();
+        return result.completion;
+      } catch (error) {
+        // Silently fail if server doesn't support completions
+        if (
+          error instanceof Error &&
+          (error.message.includes("Method not found") ||
+            error.message.includes("-32601"))
+        ) {
+          return { values: [], hasMore: false };
+        }
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get completions",
         });
       }
     }),

@@ -8,9 +8,6 @@ import type {
 import { env } from "@/env";
 import type { CredentialStorage } from "@/server/storage/credential-storage";
 
-// Convert seconds to milliseconds
-const SECONDS_TO_MS = 1000;
-
 /**
  * OAuth provider implementation for MCP SDK that stores credentials in database
  *
@@ -95,7 +92,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
   async saveTokens(tokens: OAuthTokens): Promise<void> {
     // Calculate expiration time if expires_in is provided
     const expiresAt = tokens.expires_in
-      ? new Date(Date.now() + tokens.expires_in * SECONDS_TO_MS)
+      ? new Date(Date.now() + tokens.expires_in * 1000)
       : undefined;
 
     await this.storage.saveTokens(this.serverId, tokens, expiresAt);

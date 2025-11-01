@@ -1,8 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import {
+  CodeBlock,
+  CodeBlockCopyButton,
+} from "@/components/ai-elements/code-block";
 import {
   Accordion,
   AccordionContent,
@@ -10,8 +13,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -103,9 +104,16 @@ function LogItem({ log, isNew }: LogItemProps) {
           {/* Request Details */}
           <div>
             <h4 className="mb-2 font-semibold">Request</h4>
-            <pre className="wrap-break-word whitespace-pre-wrap rounded-sm bg-muted p-4 font-mono text-xs">
-              {JSON.stringify(log.requestBody, null, 2)}
-            </pre>
+            <CodeBlock
+              code={
+                log.requestBody !== undefined
+                  ? JSON.stringify(log.requestBody, null, 2)
+                  : "{}"
+              }
+              language="json"
+            >
+              <CodeBlockCopyButton />
+            </CodeBlock>
           </div>
 
           <Separator />
@@ -116,9 +124,16 @@ function LogItem({ log, isNew }: LogItemProps) {
             {log.error ? (
               <div className="text-destructive">{log.error}</div>
             ) : (
-              <pre className="wrap-break-word whitespace-pre-wrap rounded-sm bg-muted p-4 font-mono text-xs">
-                {JSON.stringify(log.responseBody, null, 2)}
-              </pre>
+              <CodeBlock
+                code={
+                  log.responseBody !== undefined
+                    ? JSON.stringify(log.responseBody, null, 2)
+                    : "{}"
+                }
+                language="json"
+              >
+                <CodeBlockCopyButton />
+              </CodeBlock>
             )}
           </div>
         </div>
@@ -129,38 +144,24 @@ function LogItem({ log, isNew }: LogItemProps) {
 
 export function RequestLogs({ serverId, onLogCountChange }: RequestLogsProps) {
   const api = useTRPC();
-  const queryClient = useQueryClient();
-  const [showConnectionSetup, setShowConnectionSetup] = useState(false);
-  const [serverSelectedAt, setServerSelectedAt] = useState<Date | null>(null);
   const seenLogIds = useRef(new Set<string>());
 
-  // Update timestamp when server changes
+  // Clear seen logs when server changes
   useEffect(() => {
     if (serverId) {
-      setServerSelectedAt(new Date());
       seenLogIds.current.clear();
     }
   }, [serverId]);
 
-  const { data: allLogs } = useQuery({
+  const { data: logs } = useQuery({
     ...api.logs.list.queryOptions({
       serverId: serverId || "",
-      limit: 50,
-      since: serverSelectedAt?.toISOString(),
+      limit: 10,
     }),
     refetchInterval: 1000,
     refetchOnWindowFocus: true,
     enabled: !!serverId,
   });
-
-  // Filter out connection setup logs unless user wants to see them
-  const logs = showConnectionSetup
-    ? allLogs
-    : allLogs?.filter(
-        (log) =>
-          log.mcpMethod !== "initialize" &&
-          log.mcpMethod !== "notifications/initialized"
-      );
 
   // Notify parent of log count changes
   useEffect(() => {
@@ -169,43 +170,8 @@ export function RequestLogs({ serverId, onLogCountChange }: RequestLogsProps) {
     }
   }, [logs, onLogCountChange]);
 
-  const clearMutation = useMutation(
-    api.logs.clear.mutationOptions({
-      onSuccess: () => {
-        toast.success("Logs cleared");
-        queryClient.invalidateQueries({ queryKey: api.logs.list.queryKey() });
-      },
-      onError: (error) => {
-        toast.error(error.message || "Failed to clear logs");
-      },
-    })
-  );
-
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-border border-b px-4 py-2">
-        <ButtonGroup>
-          <Button
-            onClick={() => setShowConnectionSetup(!showConnectionSetup)}
-            size="sm"
-            variant="outline"
-          >
-            {showConnectionSetup ? "Hide" : "Show"} Initialization
-          </Button>
-          <Button
-            disabled={!(logs?.length && serverId)}
-            onClick={() => {
-              if (serverId) {
-                clearMutation.mutate({ serverId });
-              }
-            }}
-            size="sm"
-            variant="outline"
-          >
-            Clear Logs
-          </Button>
-        </ButtonGroup>
-      </div>
       <div className="flex-1 overflow-hidden">
         {serverId ? (
           !logs || logs.length === 0 ? (

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ChevronUpIcon, PlusIcon, ServerIcon } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -28,6 +28,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const { setOpen: setAddServerDialogOpen } = useAddServerDialog();
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const api = useTRPC();
   const { data: servers = [], isLoading } = useQuery({
     ...api.server.list.queryOptions(),
@@ -41,8 +42,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
     setMounted(true);
   }, []);
 
-  const handleServerSelect = () => {
-    // TODO: Navigate to server or trigger server action
+  const handleServerSelect = (serverId: string) => {
+    const targetPath = `/server/${serverId}`;
+    if (pathname !== targetPath) {
+      router.push(targetPath);
+    }
     onOpenChange(false);
   };
 
@@ -91,7 +95,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
               {servers.map((server) => (
                 <CommandItem
                   key={server.id}
-                  onSelect={handleServerSelect}
+                  onSelect={() => handleServerSelect(server.serverId)}
                   value={`${server.serverName ?? "Unnamed Server"} ${server.serverUrl}`}
                 >
                   <ServerIcon />

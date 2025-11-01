@@ -237,3 +237,50 @@ Use Next.js `<Image>` comp vs `<img>` el
 Use Next.js `next/head` or App Router metadata API vs `<head>` el
 No importing `next/document` in page files
 No importing `next/head` in `_document.tsx`. Use `<Head>` from `next/document` instead
+
+## Project-Specific Patterns
+
+### Component Organization
+Refactor large components (>500 lines) into folder structure w/ index.tsx as main export
+Colocate related components and utilities in same folder
+Use kebab-case for all file names (tool-executor.tsx, use-server-capabilities.ts)
+Index files export default from index.tsx, not named files
+
+### Error Handling
+Treat JSON-RPC error code -32601 (Method not found) as "no data", not error
+Use `cause` field in TRPCError for structured error data, not JSON.stringify in message
+Check for method not found before showing error UI: `isMethodNotFoundError(error)`
+Auto redirect to OAuth on UNAUTHORIZED errors using custom hooks
+
+### tRPC Patterns
+Use `void queryClient.prefetchQuery()` in RSC for non-blocking streaming
+Invalidate all queries on destructive operations: `queryClient.invalidateQueries()`
+Use `useInfiniteQueryWithAuth` for automatic OAuth redirect on UNAUTHORIZED errors
+Remove query dependencies to enable parallel execution where possible
+Access tRPC client via `api` object from `useTRPC()` hook
+
+### Navigation & UX
+Use `router.replace()` for destructive operations (deletes, cancels) to remove from history
+Use `router.push()` for normal navigation that should be in history
+Show loading states on all async operations: `disabled={isPending}` and text changes
+Display button loading state: `{isPending ? "Loading..." : "Action"}`
+Disable buttons during mutations to prevent double-clicks
+
+### React Query
+Expose error states and refetch functions from custom hooks for UI error handling
+Return all query states: data, loading, error, refetch, hasNextPage, fetchNextPage
+Invalidate specific queries by key, or all queries for cross-cutting changes
+Use useInfiniteQuery for paginated data (tools, resources, prompts)
+
+### Custom Hooks
+Extract reusable query logic into custom hooks (use-server-capabilities, use-infinite-query-with-auth)
+Name hooks with `use` prefix and descriptive names
+Return object with all relevant states and functions
+Document hook purpose and usage in JSDoc comments
+Custom hooks should handle errors internally (toasts, redirects) when appropriate
+
+### Form Patterns
+Always render form with action buttons, even when no input fields required
+Use conditional rendering within form, not early returns that skip buttons
+Show helpful messages when forms have no fields: "This [feature] does not require any arguments"
+Place Execute/Submit buttons outside conditionals so they always render

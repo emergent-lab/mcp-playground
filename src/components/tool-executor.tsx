@@ -1,61 +1,107 @@
 "use client";
 
-import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
+import {
+  CodeBlock,
+  CodeBlockCopyButton,
+} from "@/components/ai-elements/code-block";
+import { ResultViewer } from "@/components/result-viewer";
+import { ToolParameterForm } from "@/components/tool-parameter-form";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import type {
+  FieldValue,
+  FormValues,
+  ToolInputSchema,
+} from "@/lib/schema-types";
 import { useTRPC } from "@/lib/trpc/client";
 
 type ToolExecutorProps = {
   serverId: string;
   toolName: string;
+  toolDescription?: string;
+  tools?: Array<{ name: string; inputSchema?: unknown }>;
 };
 
-const formSchema = z.object({
-  arguments: z.string().refine(
-    (val) => {
-      try {
-        JSON.parse(val);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { message: "Must be valid JSON" }
-  ),
-});
-
-export function ToolExecutor({ serverId, toolName }: ToolExecutorProps) {
+export function ToolExecutor({
+  serverId,
+  toolName,
+  toolDescription,
+  tools: toolsProp,
+}: ToolExecutorProps) {
   const api = useTRPC();
   const [result, setResult] = useState<unknown>(null);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+  const [canCollapseDescription, setCanCollapseDescription] = useState(false);
+  const [formValues, setFormValues] = useState<FormValues>({});
+  const descriptionRef = useRef<HTMLDivElement | null>(null);
+  const prevToolNameRef = useRef<string>(toolName);
   const queryClient = useQueryClient();
 
-  const { data: tools } = useQuery({
-    ...api.server.listTools.queryOptions({ serverId }),
-    enabled: !!serverId,
-  });
+  // Only fetch if tools prop not provided (fallback for standalone usage)
+  const { data: toolsData } = useQuery(
+    api.server.listTools.queryOptions({ serverId }, { enabled: !toolsProp })
+  );
 
-  const toolSchema = tools?.find((t) => t.name === toolName)?.inputSchema;
+  const inputSchema = useMemo(
+    () =>
+      (toolsProp || toolsData?.tools)?.find((t) => t.name === toolName)
+        ?.inputSchema as ToolInputSchema | undefined,
+    [toolsProp, toolsData, toolName]
+  );
+
+  // Reset result and preserve matching parameters when tool changes
+  // Detect whether the description overflows the collapsed container.
+  useEffect(() => {
+    // Only run when tool actually changes
+    if (prevToolNameRef.current === toolName) {
+      return;
+    }
+
+    prevToolNameRef.current = toolName;
+    setResult(null);
+
+    if (!inputSchema) {
+      return;
+    }
+
+    const properties = inputSchema.properties || {};
+    const newFormValues: FormValues = {};
+
+    // Preserve values for parameters that exist in the new tool
+    for (const [paramName, paramSchema] of Object.entries(properties)) {
+      if (formValues[paramName] !== undefined) {
+        // Parameter exists in both old and new tool - preserve the value
+        newFormValues[paramName] = formValues[paramName];
+      } else if (paramSchema.default !== undefined) {
+        // New parameter with a default value
+        newFormValues[paramName] = paramSchema.default as FieldValue;
+      }
+      // Otherwise leave it undefined (will show as empty)
+    }
+
+    setFormValues(newFormValues);
+  }, [toolName, inputSchema, formValues]);
+
+  // Fetch tool execution history
+  const { data: toolHistory } = useQuery({
+    ...api.logs.listToolExecutions.queryOptions({
+      serverId,
+      toolName,
+      limit: 10,
+    }),
+    enabled: !!serverId && !!toolName,
+  });
 
   const executeMutation = useMutation(
     api.server.callTool.mutationOptions({
@@ -63,6 +109,12 @@ export function ToolExecutor({ serverId, toolName }: ToolExecutorProps) {
         setResult(data);
         toast.success("Tool executed successfully");
         queryClient.invalidateQueries({ queryKey: api.logs.list.queryKey() });
+        queryClient.invalidateQueries({
+          queryKey: api.logs.listToolExecutions.queryKey({
+            serverId,
+            toolName,
+          }),
+        });
       },
       onError: (error) => {
         toast.error(error.message || "Execution failed");
@@ -71,114 +123,212 @@ export function ToolExecutor({ serverId, toolName }: ToolExecutorProps) {
     })
   );
 
-  const form = useForm({
-    defaultValues: {
-      arguments: "{}",
-    },
-    validators: {
-      onSubmit: formSchema,
-    },
-    onSubmit: ({ value }) => {
-      const args = JSON.parse(value.arguments);
-      executeMutation.mutate({
-        serverId,
-        toolName,
-        arguments: args,
-      });
-    },
-  });
+  const handleSubmit = (values: FormValues) => {
+    executeMutation.mutate({
+      serverId,
+      toolName,
+      arguments: values,
+    });
+  };
+
+  const handleReset = () => {
+    if (!inputSchema) {
+      return;
+    }
+
+    const properties = inputSchema.properties || {};
+    const resetValues: FormValues = {};
+
+    // Reset to schema defaults only
+    for (const [paramName, paramSchema] of Object.entries(properties)) {
+      if (paramSchema.default !== undefined) {
+        resetValues[paramName] = paramSchema.default as FieldValue;
+      }
+    }
+
+    setFormValues(resetValues);
+  };
+
+  const handleReplay = (logEntry: NonNullable<typeof toolHistory>[number]) => {
+    const requestBody = logEntry.requestBody as {
+      params?: { arguments?: Record<string, unknown> };
+    };
+    const args = requestBody.params?.arguments || {};
+
+    // Format timestamp for toast
+    const timestamp = new Date(logEntry.createdAt).toLocaleString();
+
+    // Auto-execute with historical parameters
+    toast.info(`Replaying execution from ${timestamp}`);
+    executeMutation.mutate({
+      serverId,
+      toolName,
+      arguments: args as FormValues,
+    });
+  };
+
+  useEffect(() => {
+    if (!toolDescription) {
+      setCanCollapseDescription(false);
+      return;
+    }
+
+    const element = descriptionRef.current;
+
+    if (!element) {
+      setCanCollapseDescription(false);
+      return;
+    }
+
+    const clampClass = "line-clamp-3";
+    const shouldTemporarilyClamp =
+      isDescriptionOpen && !element.classList.contains(clampClass);
+
+    if (shouldTemporarilyClamp) {
+      element.classList.add(clampClass);
+    }
+
+    const isOverflowing = element.scrollHeight > element.clientHeight + 1;
+    setCanCollapseDescription(isOverflowing);
+
+    if (shouldTemporarilyClamp) {
+      element.classList.remove(clampClass);
+    }
+  }, [toolDescription, isDescriptionOpen]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Execute Tool</CardTitle>
-        <CardDescription>
-          {toolName ? (
-            <div className="mt-2 flex items-center gap-2">
-              <Badge variant="outline">{toolName}</Badge>
-              {toolSchema && (
-                <span className="text-muted-foreground text-xs">
-                  {
-                    Object.keys(
-                      (toolSchema as { properties?: object }).properties || {}
-                    ).length
-                  }{" "}
-                  parameters
-                </span>
-              )}
-            </div>
-          ) : (
-            "Select a tool to execute"
+    <div className="space-y-6">
+      {/* Tool Header */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-lg">{toolName}</h3>
+          {inputSchema?.properties && (
+            <Badge variant="secondary">
+              {Object.keys(inputSchema.properties).length} parameters
+            </Badge>
           )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            form.handleSubmit();
-          }}
-        >
-          <form.Field name="arguments">
-            {(field) => {
-              const isInvalid =
-                field.state.meta.isTouched &&
-                field.state.meta.errors.length > 0;
-              return (
-                <Field data-invalid={isInvalid}>
-                  <FieldLabel htmlFor={field.name}>Arguments (JSON)</FieldLabel>
-                  <FieldDescription>
-                    Enter tool arguments as valid JSON
-                  </FieldDescription>
-                  <Textarea
-                    aria-invalid={isInvalid}
-                    className="font-mono text-sm"
-                    id={field.name}
-                    name={field.name}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    rows={8}
-                    value={field.state.value}
-                  />
-                  {isInvalid && <FieldError errors={field.state.meta.errors} />}
-                </Field>
-              );
-            }}
-          </form.Field>
+        </div>
 
-          <ButtonGroup>
-            <Button disabled={executeMutation.isPending} type="submit">
-              {executeMutation.isPending && <Spinner className="size-4" />}
-              Execute
-            </Button>
-            <Button
-              onClick={() => form.reset()}
-              type="button"
-              variant="outline"
+        {/* Tool Description */}
+        {toolDescription && (
+          <div className="space-y-2">
+            <Collapsible
+              onOpenChange={setIsDescriptionOpen}
+              open={isDescriptionOpen}
             >
-              Reset
-            </Button>
-          </ButtonGroup>
+              <div
+                className={`overflow-hidden text-muted-foreground text-sm ${
+                  isDescriptionOpen ? "" : "line-clamp-3"
+                }`}
+                ref={descriptionRef}
+              >
+                <p className="whitespace-pre-wrap">{toolDescription}</p>
+              </div>
+              {canCollapseDescription && (
+                <CollapsibleTrigger className="text-primary text-sm underline-offset-4 hover:underline">
+                  {isDescriptionOpen ? "Show less" : "Show more"}
+                </CollapsibleTrigger>
+              )}
+            </Collapsible>
+          </div>
+        )}
+      </div>
 
-          {result !== null && (
-            <div className="mt-4">
-              <h4 className="mb-2 font-semibold">Result</h4>
-              <ScrollArea className="h-[300px]">
-                <pre className="rounded-sm bg-muted p-4 text-xs">
-                  {typeof result === "string"
-                    ? result
-                    : JSON.stringify(
-                        result as Record<string, unknown>,
-                        null,
-                        2
-                      )}
-                </pre>
-              </ScrollArea>
-            </div>
-          )}
-        </form>
-      </CardContent>
-    </Card>
+      <Separator />
+
+      {/* Parameters Form */}
+      {inputSchema ? (
+        <ToolParameterForm
+          formValues={formValues}
+          inputSchema={inputSchema}
+          isSubmitting={executeMutation.isPending}
+          onFormValuesChange={setFormValues}
+          onReset={handleReset}
+          onSubmit={handleSubmit}
+        />
+      ) : (
+        <div className="rounded-sm border border-dashed p-8 text-center text-muted-foreground text-sm">
+          {toolName ? "Loading tool schema..." : "Select a tool to execute"}
+        </div>
+      )}
+
+      {/* Results */}
+      {result !== null && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Result</h4>
+            <ResultViewer result={result} />
+          </div>
+        </>
+      )}
+
+      {/* Tool Execution History */}
+      {toolHistory && toolHistory.length > 0 && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm">Recent Executions</h4>
+            <Accordion className="w-full" collapsible type="single">
+              {toolHistory.map((log) => {
+                const timestamp = new Date(log.createdAt).toLocaleString();
+                const statusBadge =
+                  log.status && log.status >= 200 && log.status < 300
+                    ? "default"
+                    : "destructive";
+
+                return (
+                  <AccordionItem key={log.id} value={log.id}>
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex w-full items-center justify-between pr-4">
+                        <span className="text-sm">{timestamp}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={statusBadge}>{log.status}</Badge>
+                          {log.duration && (
+                            <span className="text-muted-foreground text-xs">
+                              {log.duration}ms
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pt-2">
+                        <div>
+                          <h5 className="mb-2 font-medium text-sm">
+                            Parameters
+                          </h5>
+                          <CodeBlock
+                            code={JSON.stringify(
+                              (
+                                log.requestBody as {
+                                  params?: { arguments?: unknown };
+                                }
+                              )?.params?.arguments || {},
+                              null,
+                              2
+                            )}
+                            language="json"
+                          >
+                            <CodeBlockCopyButton />
+                          </CodeBlock>
+                        </div>
+                        <Button
+                          onClick={() => handleReplay(log)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Replay with these parameters
+                        </Button>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

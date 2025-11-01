@@ -84,17 +84,11 @@ export default function OAuthCallbackPage() {
 
         if (result.success) {
           setStatus("success");
-          setTimeout(
-            () => router.push(`/?oauth=success&serverId=${result.serverId}`),
-            1000
-          );
+          router.replace(`/server/${result.serverId}`);
         } else {
           setStatus("error");
           setErrorMessage(result.error);
-          setTimeout(
-            () => router.push(`/?error=${result.redirectError}`),
-            2000
-          );
+          router.replace(`/?error=${result.redirectError}`);
         }
       } catch (error) {
         setStatus("error");

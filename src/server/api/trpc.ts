@@ -25,9 +25,28 @@ export async function createTRPCContext(opts: FetchCreateContextFnOptions) {
 type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
 /**
- * Initialize tRPC with context
+ * Initialize tRPC with context and error formatter
+ *
+ * The error formatter serializes the cause field to the client
+ * so we can pass OAuth URLs in UNAUTHORIZED errors
  */
-const t = initTRPC.context<Context>().create();
+const t = initTRPC.context<Context>().create({
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        // Serialize cause to client if it contains authUrl
+        cause:
+          error.cause &&
+          typeof error.cause === "object" &&
+          "authUrl" in error.cause
+            ? error.cause
+            : undefined,
+      },
+    };
+  },
+});
 
 /**
  * Public procedure - no authentication required

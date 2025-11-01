@@ -45,6 +45,8 @@ This project uses `pnpm` (v10.11.0+). Always use `pnpm` commands, not `npm` or `
 
 ### Tech Stack
 - **Framework**: Next.js 16 (App Router) with React 19
+- **API Layer**: tRPC with React Query (type-safe, auto-completion, prefetching)
+- **State Management**: React Query for server state, React hooks for client state
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Better Auth (multi-provider: GitHub OAuth, Magic Link, Anonymous)
 - **Email**: React Email with Resend
@@ -55,24 +57,50 @@ This project uses `pnpm` (v10.11.0+). Always use `pnpm` commands, not `npm` or `
 
 ```
 src/
-├── app/                      # Next.js App Router
-│   ├── api/auth/[...all]/   # Better Auth catch-all route
-│   ├── layout.tsx           # Root layout
-│   └── page.tsx             # Home page
+├── app/                          # Next.js App Router
+│   ├── api/auth/[...all]/       # Better Auth catch-all route
+│   ├── server/[serverId]/       # Server detail page with prefetching
+│   ├── oauth/callback/          # OAuth callback handler
+│   ├── layout.tsx               # Root layout with auth providers
+│   └── page.tsx                 # Home page
+├── components/
+│   ├── playground/              # Playground feature (folder-based)
+│   │   ├── index.tsx           # Main component
+│   │   ├── tools-list.tsx      # Tools list component
+│   │   ├── resources-list.tsx  # Resources list component
+│   │   ├── prompts-list.tsx    # Prompts list component
+│   │   └── utils.ts            # Shared utilities
+│   ├── request-logs/           # Request logs feature (folder-based)
+│   ├── ui/                     # Reusable UI components
+│   └── ...                     # Other components
+├── hooks/
+│   ├── use-server-capabilities.ts        # Server capabilities query hook
+│   ├── use-infinite-query-with-auth.ts   # Auto OAuth redirect hook
+│   └── ...
+├── server/
+│   ├── api/
+│   │   ├── routers/
+│   │   │   ├── server.ts       # Server endpoints (connect, list tools, etc)
+│   │   │   └── logs.ts         # Logs endpoints
+│   │   └── trpc.ts             # tRPC configuration
+│   ├── services/               # Business logic services
+│   └── storage/                # Database access layer
+├── lib/
+│   ├── trpc/
+│   │   ├── client.tsx          # tRPC React Query client
+│   │   └── server.tsx          # tRPC server utils & prefetching
+│   ├── auth.ts                 # Better Auth server config
+│   ├── auth-client.ts          # Better Auth client hooks
+│   └── utils.ts                # Utility functions
 ├── db/
 │   ├── schema/
-│   │   ├── auth.ts          # Better Auth schema (auto-generated)
-│   │   └── app.ts           # Application schema (server, log tables)
-│   └── index.ts             # Drizzle client with combined schema
-├── lib/
-│   ├── auth.ts              # Better Auth server config
-│   ├── auth-client.ts       # Better Auth client hooks
-│   ├── email/resend.ts      # Resend client
-│   └── utils.ts             # Utility functions
-└── env.ts                   # Type-safe environment variables (T3 Env)
+│   │   ├── auth.ts             # Better Auth schema (auto-generated)
+│   │   └── app.ts              # Application schema (server, log tables)
+│   └── index.ts                # Drizzle client with combined schema
+└── env.ts                       # Type-safe environment variables (T3 Env)
 
-emails/                       # React Email templates
-migrations/                   # Drizzle migrations
+emails/                          # React Email templates
+migrations/                      # Drizzle migrations
 ```
 
 ### Database Schema
@@ -95,6 +123,100 @@ migrations/                   # Drizzle migrations
   - Stores HTTP metadata (method, URL, status, duration)
   - Captures request/response headers and bodies
   - Links to both `server` and `user` for efficient querying
+
+### tRPC & React Query Patterns
+
+**Server-Side Prefetching** (`src/app/server/[serverId]/page.tsx`):
+- Use `getQueryClient()` to get per-request query client
+- Prefetch queries with `void queryClient.prefetchQuery()` (don't await for streaming)
+- Wrap with `<HydrateClient>` to stream data to client
+- Example: Server details prefetched before page renders
+
+**Client-Side Queries**:
+- Use `useQuery` for single queries
+- Use `useInfiniteQuery` for paginated data (tools, resources, prompts)
+- Access via `api` object from `useTRPC()` hook
+- Queries are type-safe with auto-completion
+
+**Mutations**:
+- Use `useMutation` for write operations
+- Invalidate queries in `onSuccess` callback
+- Show loading states with `isPending`
+- Display errors with toast notifications
+
+**Cache Invalidation**:
+- Specific: `queryClient.invalidateQueries({ queryKey: api.server.list.queryKey() })`
+- All queries: `queryClient.invalidateQueries()` (use for destructive operations)
+- Invalidate on mutations that affect multiple query types
+
+### Error Handling Patterns
+
+**TRPCError Structure**:
+- Use `cause` field for structured error data (not JSON in message)
+- Example: `throw new TRPCError({ code: "UNAUTHORIZED", message: "...", cause: { authUrl } })`
+- Client can access typed cause data
+
+**JSON-RPC Error Codes** (MCP Protocol):
+- `-32601` (Method not found) = Server doesn't support capability
+- Treat as "no data" rather than error (no toast, no error UI)
+- Helper: `isMethodNotFoundError(error)` checks for -32601
+
+**Auto OAuth Redirect** (`src/hooks/use-infinite-query-with-auth.ts`):
+- Wraps `useInfiniteQuery` with automatic error handling
+- UNAUTHORIZED errors trigger automatic OAuth redirect
+- Method not found errors ignored (server capability check)
+- Other errors show toast with retry action
+
+**Error Handling Flow**:
+1. Auth errors (UNAUTHORIZED) → Auto redirect to OAuth URL
+2. Method not found (-32601) → Treat as "no capability", show empty state
+3. Other errors → Toast notification with retry button
+
+### Component Organization Patterns
+
+**Folder-Based Components**:
+When a component file grows large (>500 lines), refactor into folder structure:
+```
+components/
+└── feature-name/
+    ├── index.tsx          # Main component (exports default)
+    ├── sub-component-1.tsx
+    ├── sub-component-2.tsx
+    └── utils.ts           # Shared helpers
+```
+
+**Benefits**:
+- Each component in its own file (single responsibility)
+- Shared utilities colocated with components
+- Import paths unchanged: `@/components/feature-name` resolves to `index.tsx`
+
+**Example**: `playground/` folder contains main component + 3 list components + utilities
+
+**File Naming**:
+- Use kebab-case for all files: `tool-executor.tsx`, `use-server-capabilities.ts`
+- Index files: `index.tsx` (not `Feature.tsx`)
+- Utilities: `utils.ts` (shared), feature-specific names for others
+
+### UX & Navigation Patterns
+
+**History Management**:
+- Use `router.push()` for normal navigation (adds to history)
+- Use `router.replace()` for destructive operations (replaces history entry)
+- Example: After deleting a server, use `replace('/')` so back button doesn't return to deleted page
+
+**Loading States**:
+- Always show loading indicators on async operations
+- Disable buttons during mutations: `disabled={mutation.isPending}`
+- Show text changes: `{isPending ? "Deleting..." : "Delete"}`
+
+**Optimistic Updates**:
+- Not currently implemented, but consider for better UX
+- Use React Query's `onMutate` for immediate feedback
+
+**Empty States**:
+- Provide helpful messages when no data
+- Distinguish between: no data, loading, and errors
+- Method not found = show "No X available" (not error)
 
 ### Authentication Flow
 
@@ -161,9 +283,13 @@ PostgreSQL 17 container configured in `docker-compose.db.yml`:
 
 ## Important Notes
 
-- **No tRPC**: Despite dependencies, tRPC is not currently set up. API calls use Better Auth routes.
+- **tRPC**: Fully integrated with React Query for type-safe API calls. Use tRPC for all server communication.
 - **React 19 + Compiler**: This project uses React 19 with the React Compiler (babel plugin).
 - **Ultracite Rules**: Strict linting rules are enforced via `.cursor/rules/ultracite.mdc`. Follow these patterns.
 - **No `console` statements**: Ultracite disallows `console` - use proper logging if needed.
 - **Type safety**: Always use `T[]` vs `Array<T>`, `export type` for types, no `any` types.
 - **Database adapter**: Better Auth requires Drizzle schema regeneration if auth config changes significantly.
+- **Parallel Queries**: Remove dependencies between queries for parallel execution where possible.
+- **Cache Invalidation**: Use `queryClient.invalidateQueries()` (no params) for destructive operations.
+- **Error Cause Field**: Always use `cause` field in TRPCError, not JSON.stringify in message.
+- **Method Not Found**: JSON-RPC -32601 means no capability, not an error - show empty state.

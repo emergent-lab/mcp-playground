@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TrashIcon } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -29,6 +29,7 @@ import { useTRPC } from "@/lib/trpc/client";
 export function ServerSidebarMenu() {
   const api = useTRPC();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const params = useParams();
   const activeServerId = params?.serverId as string | undefined;
 
@@ -36,9 +37,17 @@ export function ServerSidebarMenu() {
 
   const deleteMutation = useMutation(
     api.server.delete.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (_data, variables) => {
         toast.success("Server deleted");
-        queryClient.invalidateQueries({ queryKey: api.server.list.queryKey() });
+
+        // Invalidate all queries to clear any cached data for the deleted server
+        queryClient.invalidateQueries();
+
+        // If we just deleted the currently active server, redirect to home
+        // Use replace() to remove the deleted server page from browser history
+        if (activeServerId === variables.serverId) {
+          router.replace("/");
+        }
       },
       onError: (error) => {
         toast.error(error.message || "Failed to delete server");
@@ -120,13 +129,14 @@ export function ServerSidebarMenu() {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
+                  disabled={deleteMutation.isPending}
                   onClick={() =>
                     deleteMutation.mutate({
                       serverId: server.serverId,
                     })
                   }
                 >
-                  Delete
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
