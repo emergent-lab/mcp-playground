@@ -1,20 +1,12 @@
-"use client";
-
 import type { SVGProps } from "react";
-import { useTheme } from "next-themes";
 
 const ModelContextProtocol = (props: SVGProps<SVGSVGElement>) => {
-  const { resolvedTheme } = useTheme();
-  // Default to white (#ffffff) until theme is resolved, then switch based on actual theme
-  const fill = resolvedTheme === "light" ? "#000000" : "#ffffff";
-
   return (
     <svg
       {...props}
-      fill={fill}
+      className="fill-foreground"
       fillRule="evenodd"
       style={{ flex: "none", lineHeight: 1 }}
-      suppressHydrationWarning
       viewBox="0 0 24 24"
     >
       <title>ModelContextProtocol</title>
