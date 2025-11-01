@@ -1,6 +1,6 @@
-import type { RequestLog } from "@/server/services/log-service";
-import { sanitizeBody, sanitizeHeaders } from "@/lib/logging-sanitization";
 import { createMiddleware } from "@modelcontextprotocol/sdk/client/middleware.js";
+import { sanitizeBody, sanitizeHeaders } from "@/lib/logging-sanitization";
+import type { RequestLog } from "@/server/services/log-service";
 
 export type LogCallback = (
   log: Omit<RequestLog, "userId" | "serverId">

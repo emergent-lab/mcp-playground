@@ -10,6 +10,7 @@
     "lint": "ultracite check",
     "lint:fix": "ultracite fix",
     "format": "biome format --write",
+    "format:check": "biome format",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm lint && pnpm typecheck && pnpm format",
     "test": "vitest run",
@@ -23,7 +24,8 @@
     "db:studio": "drizzle-kit studio",
     "auth:generate": "SKIP_ENV_VALIDATION=true pnpm dlx @better-auth/cli generate --output ./src/db/schema/auth.ts",
     "email:dev": "email dev --dir ./emails -p 3333",
-    "email:test": "tsx scripts/test-magic-link.ts"
+    "email:test": "tsx scripts/test-magic-link.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

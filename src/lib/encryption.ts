@@ -84,7 +84,9 @@ export function decrypt(payload: string): string {
     );
     decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
 
-    return decipher.update(encryptedHex, "hex", "utf8") + decipher.final("utf8");
+    return (
+      decipher.update(encryptedHex, "hex", "utf8") + decipher.final("utf8")
+    );
   } catch (error) {
     throw new DecryptionError("Failed to decrypt payload", { cause: error });
   }
