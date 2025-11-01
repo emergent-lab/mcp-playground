@@ -10,7 +10,7 @@ const ORIGINAL_SALT = process.env.IP_HASH_SALT;
 
 afterEach(() => {
   if (ORIGINAL_SALT === undefined) {
-    delete process.env.IP_HASH_SALT;
+    process.env.IP_HASH_SALT = undefined;
   } else {
     process.env.IP_HASH_SALT = ORIGINAL_SALT;
   }
