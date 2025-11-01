@@ -1,0 +1,19 @@
+#!/bin/sh
+# Exit on any error
+set -e
+
+echo "Running pre-push checks..."
+
+# Run lint check
+echo "→ Linting..."
+pnpm lint
+
+# Run format check
+echo "→ Checking formatting..."
+pnpm format:check
+
+# Run typecheck
+echo "→ Type checking..."
+pnpm typecheck
+
+echo "✅ All pre-push checks passed!"
