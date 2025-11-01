@@ -8,6 +8,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { Ciphertext } from "@/lib/encryption";
 import { user } from "./auth";
 
 export const server = pgTable(
@@ -26,9 +27,12 @@ export const server = pgTable(
     requiresAuth: boolean("requires_auth").default(false).notNull(),
 
     // OAuth persistent data (null for non-auth servers)
+    /**
+     * @remarks Client metadata stored with encrypted client_secret. Use CredentialStorage to access.
+     */
     clientInfo: jsonb("client_info").$type<{
       client_id: string;
-      client_secret?: string;
+      client_secret?: Ciphertext;
       redirect_uris: string[];
       grant_types?: string[];
       response_types?: string[];
@@ -36,9 +40,12 @@ export const server = pgTable(
       client_name?: string;
     }>(),
 
+    /**
+     * @remarks Tokens are stored encrypted at rest. CredentialStorage#saveTokens and #getTokens handle conversion.
+     */
     tokens: jsonb("tokens").$type<{
-      access_token: string;
-      refresh_token?: string;
+      access_token: Ciphertext;
+      refresh_token?: Ciphertext;
       token_type: string;
       expires_in?: number;
       scope?: string;

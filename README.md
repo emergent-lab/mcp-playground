@@ -19,6 +19,7 @@ MCP Playground is a **web-based** developer tool designed to inspect and test Mo
 - 🔧 **Interactive Testing** - Execute tools, view resources, and test prompts in real-time
 - 📊 **Request Logging** - Track all JSON-RPC requests and responses for debugging
 - 🔒 **OAuth Integration** - Secure OAuth flows for MCP servers that require authentication
+- 🛡️ **Application Encryption** - AES-256-GCM protects OAuth tokens and client secrets
 - 👥 **Flexible Authentication** - Use anonymously without signing in, or create an account (GitHub OAuth, Magic Link) for persistent data and cross-device access
 
 ## Why MCP Playground?
@@ -88,6 +89,9 @@ Before running the application, you'll need to set up services and configure env
 
    # Resend (Required for Magic Link authentication)
    RESEND_API_KEY="your_resend_api_key"
+
+   # Application-level encryption
+   ENCRYPTION_KEY="paste_64_char_hex_key"  # Generate with: openssl rand -hex 32
    ```
 
 3. **Start Database**
@@ -227,6 +231,12 @@ This creates a database with:
 | `GITHUB_CLIENT_ID` | GitHub OAuth application client ID | For GitHub login |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth application client secret | For GitHub login |
 | `RESEND_API_KEY` | Resend API key for sending magic link emails | For Magic Link auth |
+| `ENCRYPTION_KEY` | 64-character hex key for encrypting OAuth credentials | Yes |
+
+### Encryption Setup
+
+- Generate a new key locally with `openssl rand -hex 32` and add it to `.env.local` as well as Supabase/Vercel secrets.
+
 
 ## Common Commands
 
