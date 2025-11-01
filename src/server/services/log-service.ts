@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Database } from "@/db";
 import { log } from "@/db/schema/app";
+import { sanitizeBody, sanitizeHeaders } from "@/lib/logging-sanitization";
 
 export type RequestLog = {
   serverId: string;
@@ -43,6 +44,21 @@ export class LogService {
    */
   async saveLog(data: RequestLog): Promise<void> {
     try {
+      const sanitizedRequestHeaders = data.requestHeaders
+        ? sanitizeHeaders(data.requestHeaders)
+        : undefined;
+      const sanitizedResponseHeaders = data.responseHeaders
+        ? sanitizeHeaders(data.responseHeaders)
+        : undefined;
+      const sanitizedRequestBody =
+        data.requestBody === undefined
+          ? undefined
+          : sanitizeBody(data.requestBody);
+      const sanitizedResponseBody =
+        data.responseBody === undefined
+          ? undefined
+          : sanitizeBody(data.responseBody);
+
       await this.db.insert(log).values({
         serverId: data.serverId,
         userId: data.userId,
@@ -52,10 +68,10 @@ export class LogService {
         status: data.status,
         statusText: data.statusText,
         duration: data.duration,
-        requestHeaders: data.requestHeaders,
-        requestBody: data.requestBody,
-        responseHeaders: data.responseHeaders,
-        responseBody: data.responseBody,
+        requestHeaders: sanitizedRequestHeaders,
+        requestBody: sanitizedRequestBody,
+        responseHeaders: sanitizedResponseHeaders,
+        responseBody: sanitizedResponseBody,
         error: data.error,
       });
     } catch (error) {

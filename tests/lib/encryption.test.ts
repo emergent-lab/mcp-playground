@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 const PLAINTEXT = "super-secret-token";
 
 test("encrypt produces distinct ciphertext and decrypt restores original value", async () => {
-  const module = await import("./encryption");
+  const module = await import("@/lib/encryption");
   const ciphertext = module.encrypt(PLAINTEXT);
 
   expect(ciphertext).not.toBe(PLAINTEXT);
@@ -12,7 +12,7 @@ test("encrypt produces distinct ciphertext and decrypt restores original value",
 });
 
 test("decrypt rejects tampered ciphertext", async () => {
-  const module = await import("./encryption");
+  const module = await import("@/lib/encryption");
   const ciphertext = module.encrypt(PLAINTEXT);
 
   const segments = ciphertext.split(":");
@@ -32,7 +32,7 @@ test("encrypt throws when encryption key is invalid", async () => {
     },
   }));
 
-  const module = await import("./encryption");
+  const module = await import("@/lib/encryption");
 
   expect(() => module.encrypt(PLAINTEXT)).toThrow(module.EncryptionKeyError);
 });
