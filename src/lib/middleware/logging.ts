@@ -1,5 +1,6 @@
-import { createMiddleware } from "@modelcontextprotocol/sdk/client/middleware.js";
 import type { RequestLog } from "@/server/services/log-service";
+import { sanitizeBody, sanitizeHeaders } from "@/lib/logging-sanitization";
+import { createMiddleware } from "@modelcontextprotocol/sdk/client/middleware.js";
 
 export type LogCallback = (
   log: Omit<RequestLog, "userId" | "serverId">
@@ -13,7 +14,7 @@ function extractHeaders(headers: Headers): Record<string, string> {
   for (const [key, value] of headers.entries()) {
     record[key] = value;
   }
-  return record;
+  return sanitizeHeaders(record);
 }
 
 /**
@@ -31,10 +32,14 @@ function parseJsonOrText(text: string): unknown {
  * Safely parses request body (handles JSON strings and raw data)
  */
 function parseRequestBody(body: unknown): unknown {
-  if (typeof body === "string") {
-    return parseJsonOrText(body);
+  if (body === null || body === undefined) {
+    return body;
   }
-  return body;
+  if (typeof body === "string") {
+    const parsed = parseJsonOrText(body);
+    return sanitizeBody(parsed);
+  }
+  return sanitizeBody(body);
 }
 
 /**
@@ -110,10 +115,12 @@ async function parseResponseBody(response: Response): Promise<unknown> {
     // Check if response is SSE format
     const contentType = response.headers.get("content-type");
     if (contentType?.includes("text/event-stream")) {
-      return parseSseResponse(text);
+      const parsed = parseSseResponse(text);
+      return sanitizeBody(parsed);
     }
 
-    return parseJsonOrText(text);
+    const parsed = parseJsonOrText(text);
+    return sanitizeBody(parsed);
   } catch {
     return;
   }
