@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies, headers } from "next/headers";
@@ -14,6 +15,7 @@ import { AddServerDialogProvider } from "@/contexts/add-server-dialog-context";
 import { CommandMenuProvider } from "@/contexts/command-menu-context";
 import { auth } from "@/lib/auth";
 import { TRPCReactProvider } from "@/lib/trpc/client";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -85,6 +87,7 @@ export default async function RootLayout({
                   </SidebarInset>
                 </SidebarProvider>
                 <Toaster />
+                <Analytics />
               </CommandMenuProvider>
             </AddServerDialogProvider>
           </TRPCReactProvider>
