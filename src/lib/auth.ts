@@ -11,6 +11,11 @@ import { getResend } from "@/lib/email/resend";
 const MAX_AGE = 5 * 60; // 5 minutes
 
 export const auth = betterAuth({
+  trustedOrigins: [
+    "http://localhost:3000", // Development
+    "https://mcpplayground.io", // Production
+    "https://www.mcpplayground.io", // Production (www subdomain)
+  ],
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
