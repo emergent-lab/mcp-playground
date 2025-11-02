@@ -110,15 +110,13 @@ export const serverRouter = router({
 
       try {
         // Try connecting (with OAuth provider if needed)
-        const { client, transport } = await createMcpClient(
+        // Client is returned already connected with automatic SSE fallback
+        const { client } = await createMcpClient(
           ctx.userId,
           input.serverId,
           ctx.db,
           { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
-
-        // Attempt connection using the configured transport
-        await client.connect(transport);
 
         // Success - no auth needed
         await client.close();
@@ -222,14 +220,13 @@ export const serverRouter = router({
       const storage = new CredentialStorage(ctx.userId, ctx.db);
 
       try {
-        const { client, transport } = await createMcpClient(
+        const { client } = await createMcpClient(
           ctx.userId,
           input.serverId,
           ctx.db,
           { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
 
-        await client.connect(transport);
         const result = await client.request(
           {
             method: "tools/list",
@@ -308,14 +305,13 @@ export const serverRouter = router({
       const storage = new CredentialStorage(ctx.userId, ctx.db);
 
       try {
-        const { client, transport } = await createMcpClient(
+        const { client } = await createMcpClient(
           ctx.userId,
           input.serverId,
           ctx.db,
           { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
 
-        await client.connect(transport);
         const result = await client.request(
           {
             method: "resources/list",
@@ -394,14 +390,12 @@ export const serverRouter = router({
       const storage = new CredentialStorage(ctx.userId, ctx.db);
 
       try {
-        const { client, transport } = await createMcpClient(
+        const { client } = await createMcpClient(
           ctx.userId,
           input.serverId,
           ctx.db,
           { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
-
-        await client.connect(transport);
         const result = await client.request(
           {
             method: "prompts/list",
@@ -478,7 +472,7 @@ export const serverRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { client, transport } = await createMcpClient(
+      const { client } = await createMcpClient(
         ctx.userId,
         input.serverId,
         ctx.db,
@@ -486,7 +480,6 @@ export const serverRouter = router({
       );
 
       try {
-        await client.connect(transport);
         const result = await client.request(
           {
             method: "tools/call",
@@ -520,7 +513,7 @@ export const serverRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { client, transport } = await createMcpClient(
+      const { client } = await createMcpClient(
         ctx.userId,
         input.serverId,
         ctx.db,
@@ -528,7 +521,6 @@ export const serverRouter = router({
       );
 
       try {
-        await client.connect(transport);
         const result = await client.request(
           {
             method: "prompts/get",
@@ -561,7 +553,7 @@ export const serverRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { client, transport } = await createMcpClient(
+      const { client } = await createMcpClient(
         ctx.userId,
         input.serverId,
         ctx.db,
@@ -569,7 +561,6 @@ export const serverRouter = router({
       );
 
       try {
-        await client.connect(transport);
         const result = await client.request(
           {
             method: "resources/read",
@@ -608,7 +599,7 @@ export const serverRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const { client, transport } = await createMcpClient(
+      const { client } = await createMcpClient(
         ctx.userId,
         input.serverId,
         ctx.db,
@@ -616,8 +607,6 @@ export const serverRouter = router({
       );
 
       try {
-        await client.connect(transport);
-
         const result = await client.request(
           {
             method: "completion/complete",

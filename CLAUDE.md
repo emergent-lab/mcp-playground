@@ -266,6 +266,16 @@ This app integrates with the Model Context Protocol SDK (`@modelcontextprotocol/
   4. Return new authUrl to client for user authorization
 - Implementation: `src/server/api/routers/server.ts` (lines 254-269, 340-355, 426-441)
 
+**SSE Backward Compatibility**:
+- `createMcpClient` automatically attempts StreamableHTTP transport first (modern MCP protocol)
+- On protocol compatibility errors (4xx except 401), automatically falls back to SSE transport (protocol version 2024-11-05)
+- Auth errors (401) always propagate to caller for OAuth flow handling
+- Both transports support same features: OAuth, custom fetch middleware, request logging
+- Transport selection happens transparently - callers receive a connected client ready to use
+- Implementation: `src/server/services/mcp-client.ts` (lines 17-147)
+- Error detection: `isProtocolCompatibilityError()` distinguishes protocol errors from auth/network failures
+- Vercel deployment compatible: Both transports work within Vercel's request duration limits
+
 ### Docker Database
 
 PostgreSQL 17 container configured in `docker-compose.db.yml`:
