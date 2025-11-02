@@ -34,6 +34,13 @@ export class McpOAuthProvider implements OAuthClientProvider {
 
   /**
    * OAuth client metadata - configuration for our client application
+   *
+   * Note: We intentionally omit the `scope` parameter to comply with the MCP
+   * Authorization specification. The MCP SDK will automatically discover and
+   * request scopes from the server's WWW-Authenticate header or Protected
+   * Resource Metadata. This allows different MCP servers to define their own
+   * required scopes (e.g., Supabase uses specific scopes like 'projects:read',
+   * while others may use 'mcp:*' or no scopes at all).
    */
   get clientMetadata(): OAuthClientMetadata {
     return {
@@ -42,7 +49,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none", // Public client (browser-based)
-      scope: "mcp:*",
+      // scope is intentionally omitted - let the MCP server define required scopes
     };
   }
 

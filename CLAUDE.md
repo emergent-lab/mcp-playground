@@ -248,6 +248,24 @@ Set `SKIP_ENV_VALIDATION=true` to bypass validation (useful for codegen).
 
 This app integrates with the Model Context Protocol SDK (`@modelcontextprotocol/sdk`). The `server` table stores OAuth credentials and tokens for connecting to MCP servers, while the `log` table tracks all MCP JSON-RPC requests/responses.
 
+**OAuth Scope Discovery**:
+- We follow the MCP Authorization specification by letting servers define their own required scopes
+- The MCP SDK automatically discovers scopes from the server's WWW-Authenticate header or Protected Resource Metadata
+- No hardcoded scopes - this allows compatibility with different MCP servers:
+  - Supabase uses specific scopes: `projects:read`, `database:read`, etc.
+  - Other servers may use `mcp:*` or define no scopes at all
+- Implementation: `src/lib/mcp/oauth-provider.ts` intentionally omits the `scope` parameter from `clientMetadata`
+
+**OAuth State Management & Re-authorization**:
+- OAuth temporary data (verifier, state, authUrl) expires after 30 minutes (`OAUTH_EXPIRATION_MS` in `credential-storage.ts`)
+- Stale OAuth state is automatically cleared before each authorization attempt to prevent "Invalid or expired OAuth authorization" errors
+- When tokens expire or become invalid:
+  1. Query endpoints (listTools, listResources, listPrompts) detect 401 errors
+  2. Automatically clear old OAuth temporary data
+  3. Trigger fresh OAuth flow by attempting new connection
+  4. Return new authUrl to client for user authorization
+- Implementation: `src/server/api/routers/server.ts` (lines 254-269, 340-355, 426-441)
+
 ### Docker Database
 
 PostgreSQL 17 container configured in `docker-compose.db.yml`:
