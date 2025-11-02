@@ -19,10 +19,10 @@ export class McpOAuthProvider implements OAuthClientProvider {
   private readonly serverId: string;
   private readonly baseUrl: string;
 
-  constructor(storage: CredentialStorage, serverId: string) {
+  constructor(storage: CredentialStorage, serverId: string, baseUrl?: string) {
     this.storage = storage;
     this.serverId = serverId;
-    this.baseUrl = env.NEXT_PUBLIC_BASE_URL;
+    this.baseUrl = baseUrl ?? env.NEXT_PUBLIC_BASE_URL;
   }
 
   /**
@@ -128,7 +128,15 @@ export class McpOAuthProvider implements OAuthClientProvider {
   async codeVerifier(): Promise<string> {
     const verifier = await this.storage.getCodeVerifier(this.serverId);
     if (!verifier) {
-      throw new Error("Code verifier not found or expired");
+      // Get server details to provide better error message
+      const server = await this.storage.getServer(this.serverId);
+      const expiresAt = server?.oauthExpiresAt;
+      const isExpired = expiresAt && expiresAt < new Date();
+
+      throw new Error(
+        `Code verifier ${isExpired ? "expired" : "not found"} for server ${this.serverId}. ` +
+          `${expiresAt ? `Expired at: ${expiresAt.toISOString()}` : "No expiration set"}`
+      );
     }
     return verifier;
   }

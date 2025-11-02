@@ -13,6 +13,11 @@ export type CreateMcpClientOptions = {
    * Useful for optimistic UI updates
    */
   onLog?: (log: RequestLog) => void;
+  /**
+   * Optional base URL for OAuth redirects
+   * If not provided, uses NEXT_PUBLIC_BASE_URL from env
+   */
+  baseUrl?: string;
 };
 
 /**
@@ -68,7 +73,11 @@ export async function createMcpClient(
 
   // Always create OAuth provider - we don't know if auth is required until we try
   // If the server doesn't require auth, the provider just won't be used
-  const authProvider = new McpOAuthProvider(storage, serverId);
+  const authProvider = new McpOAuthProvider(
+    storage,
+    serverId,
+    options?.baseUrl
+  );
 
   // Apply middleware to fetch and create HTTP transport
   const enhancedFetch = applyMiddlewares(loggingMiddleware)(fetch);

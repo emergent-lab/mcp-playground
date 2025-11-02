@@ -14,6 +14,27 @@ import { createMcpClient } from "@/server/services/mcp-client";
 import { CredentialStorage } from "@/server/storage/credential-storage";
 import { protectedProcedure, router } from "../trpc";
 
+/**
+ * Extract the base URL from request headers
+ * Falls back to origin header, then constructs from host
+ */
+function getBaseUrlFromHeaders(headers: Headers): string | undefined {
+  // Try origin header first
+  const origin = headers.get("origin");
+  if (origin) {
+    return origin;
+  }
+
+  // Otherwise construct from host and protocol
+  const host = headers.get("host");
+  if (host) {
+    const proto = headers.get("x-forwarded-proto") ?? "https";
+    return `${proto}://${host}`;
+  }
+
+  return;
+}
+
 export const serverRouter = router({
   /**
    * List all servers for the authenticated user
@@ -83,12 +104,17 @@ export const serverRouter = router({
         input.serverName
       );
 
+      // Clean up any stale OAuth state from previous failed attempts
+      // This ensures a fresh start for the OAuth flow
+      await storage.clearOAuthTemporaryData(input.serverId);
+
       try {
         // Try connecting (with OAuth provider if needed)
         const { client, transport } = await createMcpClient(
           ctx.userId,
           input.serverId,
-          ctx.db
+          ctx.db,
+          { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
 
         // Attempt connection using the configured transport
@@ -199,7 +225,8 @@ export const serverRouter = router({
         const { client, transport } = await createMcpClient(
           ctx.userId,
           input.serverId,
-          ctx.db
+          ctx.db,
+          { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
 
         await client.connect(transport);
@@ -260,7 +287,8 @@ export const serverRouter = router({
         const { client, transport } = await createMcpClient(
           ctx.userId,
           input.serverId,
-          ctx.db
+          ctx.db,
+          { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
 
         await client.connect(transport);
@@ -321,7 +349,8 @@ export const serverRouter = router({
         const { client, transport } = await createMcpClient(
           ctx.userId,
           input.serverId,
-          ctx.db
+          ctx.db,
+          { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
         );
 
         await client.connect(transport);
@@ -380,7 +409,8 @@ export const serverRouter = router({
       const { client, transport } = await createMcpClient(
         ctx.userId,
         input.serverId,
-        ctx.db
+        ctx.db,
+        { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
       );
 
       try {
@@ -421,7 +451,8 @@ export const serverRouter = router({
       const { client, transport } = await createMcpClient(
         ctx.userId,
         input.serverId,
-        ctx.db
+        ctx.db,
+        { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
       );
 
       try {
@@ -461,7 +492,8 @@ export const serverRouter = router({
       const { client, transport } = await createMcpClient(
         ctx.userId,
         input.serverId,
-        ctx.db
+        ctx.db,
+        { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
       );
 
       try {
@@ -507,7 +539,8 @@ export const serverRouter = router({
       const { client, transport } = await createMcpClient(
         ctx.userId,
         input.serverId,
-        ctx.db
+        ctx.db,
+        { baseUrl: getBaseUrlFromHeaders(ctx.headers) }
       );
 
       try {

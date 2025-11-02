@@ -7,6 +7,24 @@ import { createMcpClient } from "@/server/services/mcp-client";
 import { CredentialStorage } from "@/server/storage/credential-storage";
 
 /**
+ * Extract the base URL from request headers
+ */
+function getBaseUrlFromHeaders(headers: Headers): string | undefined {
+  const origin = headers.get("origin");
+  if (origin) {
+    return origin;
+  }
+
+  const host = headers.get("host");
+  if (host) {
+    const proto = headers.get("x-forwarded-proto") ?? "https";
+    return `${proto}://${host}`;
+  }
+
+  return;
+}
+
+/**
  * API route to finish OAuth flow
  *
  * This route:
@@ -19,8 +37,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const { serverId } = await params;
+  let storage: CredentialStorage | null = null;
+
   try {
-    const { serverId } = await params;
     const { code } = await request.json();
 
     if (!code) {
@@ -40,7 +60,7 @@ export async function POST(
     }
 
     // Get server details
-    const storage = new CredentialStorage(session.user.id, db);
+    storage = new CredentialStorage(session.user.id, db);
     const server = await storage.getServer(serverId);
 
     if (!server) {
@@ -48,8 +68,11 @@ export async function POST(
     }
 
     // Create OAuth provider and transport
-    const { client } = await createMcpClient(session.user.id, serverId, db);
-    const oauthProvider = new McpOAuthProvider(storage, serverId);
+    const baseUrl = getBaseUrlFromHeaders(request.headers);
+    const { client } = await createMcpClient(session.user.id, serverId, db, {
+      baseUrl,
+    });
+    const oauthProvider = new McpOAuthProvider(storage, serverId, baseUrl);
     const transport = new StreamableHTTPClientTransport(
       new URL(server.serverUrl),
       {
@@ -69,6 +92,15 @@ export async function POST(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    // Clean up OAuth state on error so retry is possible
+    if (storage) {
+      try {
+        await storage.clearOAuthTemporaryData(serverId);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
     return NextResponse.json(
       {
         error:

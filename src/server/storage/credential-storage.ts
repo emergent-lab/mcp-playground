@@ -16,8 +16,8 @@ import {
 // Constants for time calculations
 const SECONDS_TO_MS = 1000;
 const MINUTES_TO_MS = 60 * SECONDS_TO_MS;
-// OAuth temporary data expires after 10 minutes
-const OAUTH_EXPIRATION_MS = 10 * MINUTES_TO_MS;
+// OAuth temporary data expires after 30 minutes
+const OAUTH_EXPIRATION_MS = 30 * MINUTES_TO_MS;
 
 type EncryptedTokens = {
   access_token: Ciphertext;

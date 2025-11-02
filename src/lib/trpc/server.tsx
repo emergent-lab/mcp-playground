@@ -22,14 +22,16 @@ export const getQueryClient = cache(makeQueryClient);
  * This is cached per request to ensure consistency.
  */
 const createContext = cache(async () => {
+  const requestHeaders = await headers();
   const session = await auth.api.getSession({
-    headers: await headers(),
+    headers: requestHeaders,
   });
 
   return {
     db,
     session,
     userId: session?.user?.id,
+    headers: requestHeaders,
   };
 });
 

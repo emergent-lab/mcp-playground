@@ -19,6 +19,7 @@ export async function createTRPCContext(opts: FetchCreateContextFnOptions) {
     db,
     session,
     userId: session?.user?.id,
+    headers: opts.req.headers,
   };
 }
 
