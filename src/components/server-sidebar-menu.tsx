@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
@@ -36,16 +37,31 @@ const EXPLORE_SERVERS = [
     name: "Grep",
     summary: "Search millions of GitHub repos via MCP for code snippets.",
     url: "https://mcp.grep.app",
+    requiresAuth: false,
   },
   {
     name: "Context7",
     summary: "Fetch current library docs and examples via MCP.",
     url: "https://mcp.context7.com/mcp",
+    requiresAuth: false,
   },
   {
     name: "Better Auth",
     summary: "Search Better Auth docs and chat with their AI.",
     url: "https://mcp.chonkie.ai/better-auth/better-auth-builder/mcp",
+    requiresAuth: false,
+  },
+  {
+    name: "Sentry",
+    summary: "Access Sentry issues, errors, and AI-powered debugging via MCP.",
+    url: "https://mcp.sentry.dev/mcp",
+    requiresAuth: true,
+  },
+  {
+    name: "Mintlify",
+    summary: "Search Mintlify's documentation via MCP.",
+    url: "https://mintlify.com/docs/mcp",
+    requiresAuth: false,
   },
 ];
 
@@ -175,9 +191,14 @@ export function ServerSidebarMenu() {
                 <li key={server.url}>
                   <Card className="gap-2 overflow-hidden border-border/50 bg-card/50 p-3.5 shadow-sm transition-all hover:border-border hover:bg-card hover:shadow-md">
                     <div className="flex items-center justify-between gap-2.5">
-                      <h3 className="font-semibold text-sm tracking-tight">
-                        {server.name}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-sm tracking-tight">
+                          {server.name}
+                        </h3>
+                        {server.requiresAuth ? (
+                          <Badge variant="secondary">OAuth</Badge>
+                        ) : null}
+                      </div>
                       <Button
                         className="h-7 shrink-0 rounded-lg px-3 font-medium text-xs shadow-sm"
                         disabled={connectingUrl !== null}
