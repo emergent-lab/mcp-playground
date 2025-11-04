@@ -2,10 +2,11 @@
 
 // biome-ignore lint/performance/noNamespaceImport: Sentry is a namespace import
 import * as Sentry from "@sentry/nextjs";
-import { Geist, Geist_Mono } from "next/font/google";
 import { AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
+import { Geist, Geist_Mono } from "next/font/google";
 import { useEffect } from "react";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -15,7 +16,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
