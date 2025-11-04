@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,14 +21,24 @@ type PlaygroundProps = {
 
 export function Playground({ serverId }: PlaygroundProps) {
   const api = useTRPC();
+  const router = useRouter();
   const [selectedTool, setSelectedTool] = useState<string>();
   const [selectedPrompt, setSelectedPrompt] = useState<string>();
   const [selectedResource, setSelectedResource] = useState<string>();
   const [selectedTab, setSelectedTab] = useState<TabValue>("tools");
 
-  const { data: server, isLoading } = useQuery(
-    api.server.getById.queryOptions({ serverId })
-  );
+  const {
+    data: server,
+    isLoading,
+    error,
+  } = useQuery(api.server.getById.queryOptions({ serverId }));
+
+  // Redirect to home if server not found
+  useEffect(() => {
+    if (error) {
+      router.replace("/");
+    }
+  }, [error, router]);
 
   const {
     tools,

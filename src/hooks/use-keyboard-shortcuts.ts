@@ -22,6 +22,11 @@ export function useKeyboardShortcuts({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Guard against undefined/null key (can occur in some browsers or synthetic events)
+      if (!event.key) {
+        return;
+      }
+
       const key = event.key.toLowerCase();
       const callback = shortcuts[key];
 

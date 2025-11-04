@@ -25,11 +25,10 @@ export function makeQueryClient() {
         retry: 1,
       },
       dehydrate: {
-        // Include queries that are still pending when dehydrating
-        // This allows us to prefetch in server components and consume in client components
-        shouldDehydrateQuery: (query) =>
-          defaultShouldDehydrateQuery(query) ||
-          query.state.status === "pending",
+        // Only dehydrate successful queries (default React Query behavior)
+        // Failed/pending queries are excluded and will retry on the client
+        // This prevents "query dehydrated as pending ended up rejecting" errors
+        shouldDehydrateQuery: (query) => defaultShouldDehydrateQuery(query),
       },
     },
   });

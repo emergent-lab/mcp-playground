@@ -15,11 +15,13 @@ export default async function ServerPage({ params }: ServerPageProps) {
   const queryClient = getQueryClient();
 
   // Prefetch server data - don't await to enable streaming
-  // Query starts on server and streams to client as it becomes available
-  // Playground component will show loading state until data arrives
-  void queryClient.prefetchQuery(
-    trpc.server.getById.queryOptions({ serverId })
-  );
+  // Catch promise rejection to prevent unhandled promise rejections
+  // Failed queries are excluded from dehydration and will retry on the client
+  void queryClient
+    .prefetchQuery(trpc.server.getById.queryOptions({ serverId }))
+    .catch(() => {
+      // Swallow error - failed queries won't be dehydrated, client will retry
+    });
 
   const cookieStore = await cookies();
   const panelState = cookieStore.get("request_logs_panel_state")?.value;

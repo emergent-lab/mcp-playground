@@ -1,3 +1,5 @@
+// biome-ignore lint/performance/noNamespaceImport: Sentry is a namespace import
+import * as Sentry from "@sentry/nextjs";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Database } from "@/db";
 import { log } from "@/db/schema/app";
@@ -59,7 +61,7 @@ export class LogService {
           ? undefined
           : sanitizeBody(data.responseBody);
 
-      await this.db.insert(log).values({
+      const insertValues = {
         serverId: data.serverId,
         userId: data.userId,
         method: data.method,
@@ -73,14 +75,58 @@ export class LogService {
         responseHeaders: sanitizedResponseHeaders,
         responseBody: sanitizedResponseBody,
         error: data.error,
-      });
+      };
+
+      await this.db.insert(log).values(insertValues);
     } catch (error) {
+      // Capture detailed error information for debugging
+      const errorCode =
+        error instanceof Error && "code" in error
+          ? (error as { code: unknown }).code
+          : undefined;
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Log detailed context to Sentry for non-FK violations
+      if (errorCode !== "23503") {
+        Sentry.captureException(error, {
+          level: "error",
+          tags: {
+            service: "log-service",
+            operation: "saveLog",
+            errorCode: String(errorCode ?? "unknown"),
+          },
+          extra: {
+            errorMessage,
+            errorCode,
+            errorType: error?.constructor?.name,
+            fullError: error,
+            logData: {
+              serverId: data.serverId,
+              userId: data.userId,
+              method: data.method,
+              url: data.url,
+              mcpMethod: data.mcpMethod,
+              status: data.status,
+              statusText: data.statusText,
+              duration: data.duration,
+              hasRequestHeaders: !!data.requestHeaders,
+              hasRequestBody: data.requestBody !== undefined,
+              hasResponseHeaders: !!data.responseHeaders,
+              hasResponseBody: data.responseBody !== undefined,
+              hasError: !!data.error,
+            },
+          },
+        });
+      }
+
       // Silently ignore foreign key violations - server may have been deleted
       // while MCP client connection was still active in memory
-      if (error instanceof Error && "code" in error && error.code === "23503") {
+      if (errorCode === "23503") {
         // Foreign key constraint violation - server was deleted
         return;
       }
+
       // Re-throw other errors
       throw error;
     }

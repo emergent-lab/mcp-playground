@@ -55,7 +55,7 @@ export async function createMcpClient(
 
   // Create logging middleware
   const logService = new LogService(db);
-  const loggingMiddleware = createLoggingMiddleware(async (logData) => {
+  const loggingMiddleware = createLoggingMiddleware((logData) => {
     const fullLog: RequestLog = {
       ...logData,
       userId,
@@ -67,8 +67,10 @@ export async function createMcpClient(
       options.onLog(fullLog);
     }
 
-    // Save to database
-    await logService.saveLog(fullLog);
+    // Save to database (fire-and-forget - don't let logging failures kill the request)
+    void logService.saveLog(fullLog).catch(() => {
+      // Silently ignore logging errors - already captured by Sentry in saveLog
+    });
   });
 
   // Always create OAuth provider - we don't know if auth is required until we try
